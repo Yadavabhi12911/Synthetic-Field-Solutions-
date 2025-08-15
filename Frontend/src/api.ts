@@ -7,7 +7,7 @@ const handleTokenExpiration = () => {
 };
 
 // api.ts
-const API_BASE = 'https://synthetic-field-solutions.onrender.com';
+const API_BASE = 'https://synthetic-field-solutions.onrender.com/api/v1';
 
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
