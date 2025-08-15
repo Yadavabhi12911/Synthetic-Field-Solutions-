@@ -24,6 +24,10 @@ import adminAnalyticsRouter from '../routes/admin.analytics.routes.js'
 import adminSettingsRouter from '../routes/admin.settings.routes.js'
 
 
+   app.get('/', (req, res) => {
+  res.send('Backend is working!');
+});
+
 // router declaration
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/admins", adminRouter)
