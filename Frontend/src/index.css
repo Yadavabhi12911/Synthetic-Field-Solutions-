@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles for better input visibility */
+select option {
+  background-color: #18181b !important; /* zinc-800 */
+  color: white !important;
+}
+
+select:focus option:hover {
+  background-color: #27272a !important; /* zinc-700 */
+}
+
+/* Ensure input fields are visible */
+input, textarea, select {
+  color: white !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Override for rating modal textarea */
+.rating-modal textarea {
+  color: black !important;
+  background-color: white !important;
+}
+
+.rating-modal textarea::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+/* Hide scrollbars while maintaining scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Global scrollbar hiding for entire website */
+* {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Ensure body and html also have no scrollbars */
+html, body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none;
+}
