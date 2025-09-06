@@ -8,6 +8,15 @@ import cloudinary from 'cloudinary';
 
 import mongoose from "mongoose";
 
+// Simple in-memory cache for turfs (in production, use Redis)
+const turfCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Function to clear turf cache
+const clearTurfCache = () => {
+    turfCache.clear();
+};
+
 
 
 
@@ -22,26 +31,38 @@ const getAllTurfs = asyncHandler(async (req, res) => {
     const {
         page = 1,
         query = "",
-        limit = 10,
+        limit = 20, // Increased default limit for better UX
         sortBy = "createdAt",
         sortType = "desc"
     } = req.query;
 
     const sortOrder = sortType === "asc" ? 1 : -1;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit))); // Cap at 50 for performance
 
-    // Build match condition
+    // Create cache key
+    const cacheKey = `turfs_${pageNum}_${limitNum}_${sortBy}_${sortType}_${query}`;
+    
+    // Check cache first
+    const cached = turfCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return res.status(200).json(cached.data);
+    }
+
+    // Build match condition with text search optimization
     let matchCondition = {};
-    if (query) {
+    if (query && query.trim()) {
         matchCondition = {
             $or: [
-                { address: { $regex: query, $options: "i" } },
-                { pincode: { $regex: query, $options: "i" } },
-                { description: { $regex: query, $options: "i" } }
+                { address: { $regex: query.trim(), $options: "i" } },
+                { pincode: { $regex: query.trim(), $options: "i" } },
+                { description: { $regex: query.trim(), $options: "i" } }
             ]
         };
     }
 
-    const allTurfs = await Turf.aggregate([
+    // Optimized aggregation pipeline with better performance
+    const pipeline = [
         {
             $match: matchCondition
         },
@@ -50,7 +71,16 @@ const getAllTurfs = asyncHandler(async (req, res) => {
                 from: "admins",
                 localField: "owner",
                 foreignField: "_id",
-                as: "ownerDetails"
+                as: "ownerDetails",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            userName: 1,
+                            companyName: 1
+                        }
+                    }
+                ]
             }
         },
         {
@@ -68,7 +98,7 @@ const getAllTurfs = asyncHandler(async (req, res) => {
                 pincode: 1,
                 ContactNumber: 1,
                 turfTiming: 1,
-                photos: 1,
+                photos: { $slice: ["$photos", 3] }, // Limit photos to first 3 for performance
                 averageRating: 1,
                 totalRatings: 1,
                 owner: {
@@ -86,16 +116,52 @@ const getAllTurfs = asyncHandler(async (req, res) => {
             }
         },
         {
-            $skip: (parseInt(page) - 1) * parseInt(limit)
+            $skip: (pageNum - 1) * limitNum
         },
         {
-            $limit: parseInt(limit)
+            $limit: limitNum
         }
+    ];
+
+    // Execute aggregation with parallel operations
+    const [allTurfs, totalCount] = await Promise.all([
+        Turf.aggregate(pipeline),
+        Turf.countDocuments(matchCondition)
     ]);
 
-    return res.status(200).json(
-        new ApiResponse(200, allTurfs, "Fetched All Turfs")
-    );
+    const totalPages = Math.ceil(totalCount / limitNum);
+    const hasNextPage = pageNum < totalPages;
+    const hasPrevPage = pageNum > 1;
+
+    const response = new ApiResponse(200, {
+        turfs: allTurfs,
+        pagination: {
+            currentPage: pageNum,
+            totalPages,
+            totalCount,
+            hasNextPage,
+            hasPrevPage,
+            limit: limitNum
+        }
+    }, "Fetched All Turfs Successfully");
+
+    // Cache the response
+    turfCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+    });
+
+    // Clean old cache entries periodically
+    if (turfCache.size > 100) {
+        const now = Date.now();
+        for (const [key, value] of turfCache.entries()) {
+            if (now - value.timestamp > CACHE_TTL) {
+                turfCache.delete(key);
+            }
+        }
+    }
+
+    return res.status(200).json(response);
 });
 
 // Get turfs owned by the logged-in admin
@@ -229,6 +295,9 @@ const createTurfs = asyncHandler(async (req, res) => {
         photos: photoUrls,
     });
 
+    // Clear cache when new turf is created
+    clearTurfCache();
+    
     return res.status(201).json(new ApiResponse(201, { turfs }, "Turf Listed"));
 });
 
@@ -345,6 +414,9 @@ const updateTurf = asyncHandler(async (req, res) => {
 
     await turf.save({ validateBeforeSave: false })
 
+    // Clear cache when turf is updated
+    clearTurfCache();
+
     return res
         .status(200)
         .json(new ApiResponse(201, { turf }, "Details Updated"))
@@ -365,6 +437,10 @@ const deleteTurf = asyncHandler(async (req, res) => {
     }
 
     await Turf.findByIdAndDelete(turfId)
+    
+    // Clear cache when turf is deleted
+    clearTurfCache();
+    
     return res
         .status(200)
         .json(new ApiResponse(201, { }, "turf  deleted successfully"))

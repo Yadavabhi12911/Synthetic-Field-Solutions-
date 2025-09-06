@@ -43,7 +43,6 @@ interface Turf {
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [recommendedTurfs, setRecommendedTurfs] = useState<Turf[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,9 +62,12 @@ const UserDashboard: React.FC = () => {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
         setRecentBookings(sortedBookings);
-        setRecommendedTurfs(turfsRes.data || []);
+        
+        // Handle new API response structure with pagination
+        const turfsData = turfsRes.data?.turfs || turfsRes.data || [];
+        setRecommendedTurfs(Array.isArray(turfsData) ? turfsData : []);
       })
-      .catch(err => setError('Failed to load dashboard data'))
+      .catch(() => setError('Failed to load dashboard data'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -95,6 +97,30 @@ const UserDashboard: React.FC = () => {
     setShowBookingDetailsModal(false);
     setSelectedBooking(null);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-20 px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-12">
+            <div className="text-white text-lg">Loading dashboard...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen pt-20 px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-12">
+            <div className="text-red-400 text-lg">{error}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-20 px-4 py-8">
@@ -204,7 +230,8 @@ const UserDashboard: React.FC = () => {
             </div>
             
             <div className="space-y-4">
-              {recommendedTurfs.map((turf) => (
+              {Array.isArray(recommendedTurfs) && recommendedTurfs.length > 0 ? (
+                recommendedTurfs.map((turf) => (
                 <motion.div
                   key={turf._id}
                   whileHover={{ scale: 1.02 }}
@@ -242,7 +269,12 @@ const UserDashboard: React.FC = () => {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p>No recommended turfs available</p>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
