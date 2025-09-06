@@ -75,4 +75,12 @@ const turfSchema = new mongoose.Schema({
 
 }, { timestamps: true })
 
+// Add indexes for better query performance
+turfSchema.index({ address: 1, pincode: 1, description: 1 }); // Compound index for search
+turfSchema.index({ owner: 1 }); // Index for owner lookups
+turfSchema.index({ price: 1 }); // Index for price sorting
+turfSchema.index({ averageRating: -1 }); // Index for rating sorting
+turfSchema.index({ createdAt: -1 }); // Index for date sorting
+turfSchema.index({ "address": "text", "pincode": "text", "description": "text" }); // Text index for full-text search
+
 export const Turf = mongoose.model("Turf", turfSchema)

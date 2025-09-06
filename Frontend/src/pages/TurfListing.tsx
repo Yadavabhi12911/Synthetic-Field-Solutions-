@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Filter, MapPin, Star, Clock, X } from 'lucide-react';
+import { Search, Filter, MapPin, Star, X } from 'lucide-react';
 import { getAllTurfs } from '../api';
 
 interface Turf {
@@ -41,10 +41,15 @@ const TurfListing: React.FC = () => {
     setLoading(true);
     getAllTurfs()
       .then(response => {
-        setTurfs(response.data);
-        setFilteredTurfs(response.data);
+        // Handle new response structure with pagination
+        const turfsData = response.data.turfs || response.data;
+        setTurfs(turfsData);
+        setFilteredTurfs(turfsData);
       })
-      .catch(err => setError('Failed to load turfs'))
+      .catch(err => {
+        console.error('Error loading turfs:', err);
+        setError('Failed to load turfs');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -155,6 +160,9 @@ const TurfListing: React.FC = () => {
               placeholder="Search by location, name, or facilities..."
               className="w-full pl-12 pr-4 py-4 bg-zinc-700 backdrop-blur-lg border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
             />
+            <div className="absolute -bottom-6 left-0 text-xs text-gray-500">
+              💡 <Link to="/register" className="text-teal-400 hover:text-teal-300 underline">Sign up</Link> for advanced search filters
+            </div>
           </div>
           
           <motion.button
@@ -299,9 +307,22 @@ const TurfListing: React.FC = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-12"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            <div className="text-white text-lg">Loading turfs...</div>
+            {[...Array(6)].map((_, index) => (
+              <div key={index} className="bg-white/10 backdrop-blur-lg rounded-2xl overflow-hidden border border-white/20 animate-pulse">
+                <div className="h-48 bg-gray-700"></div>
+                <div className="p-6">
+                  <div className="h-6 bg-gray-700 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-700 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-700 rounded mb-4 w-3/4"></div>
+                  <div className="flex justify-between items-center">
+                    <div className="h-6 bg-gray-700 rounded w-20"></div>
+                    <div className="h-8 bg-gray-700 rounded w-24"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </motion.div>
         )}
 
@@ -355,6 +376,10 @@ const TurfListing: React.FC = () => {
                   src={turf.photos && turf.photos.length > 0 ? turf.photos[0].photos : '/default-turf.jpg'}
                   alt={turf.description}
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.src = '/default-turf.jpg';
+                  }}
                 />
                 <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
                   Available

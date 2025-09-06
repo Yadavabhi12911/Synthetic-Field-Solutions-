@@ -27,7 +27,7 @@ turfRouter.route("/turf_update_details/:turfId").put(
 
 turfRouter.route("/turf_delete/:turfId").delete(verifyAdminJwt, deleteTurf)
 
-turfRouter.route("/getAll-Turfs").get(verifyAdminJwt,getAllTurfs)
+turfRouter.route("/getAll-Turfs").get(getAllTurfs)
 turfRouter.route("/admin-turfs").get(verifyAdminJwt,getAdminTurfs)
 
 turfRouter.route("/:turfId").get(getTurfById)
