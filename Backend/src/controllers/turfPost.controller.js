@@ -28,140 +28,117 @@ const clearTurfCache = () => {
 */
 
 const getAllTurfs = asyncHandler(async (req, res) => {
-    const {
-        page = 1,
-        query = "",
-        limit = 20, // Increased default limit for better UX
-        sortBy = "createdAt",
-        sortType = "desc"
-    } = req.query;
+  const {
+    page = 1,
+    query = "",
+    limit = 20,
+    sortBy = "createdAt",
+    sortType = "desc"
+  } = req.query;
 
-    const sortOrder = sortType === "asc" ? 1 : -1;
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit))); // Cap at 50 for performance
+  const pageNum = Math.max(1, parseInt(page));
+  const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+  const skip = (pageNum - 1) * limitNum;
+  const sortOrder = sortType === "asc" ? 1 : -1;
 
-    // Create cache key
-    const cacheKey = `turfs_${pageNum}_${limitNum}_${sortBy}_${sortType}_${query}`;
-    
-    // Check cache first
-    const cached = turfCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        return res.status(200).json(cached.data);
-    }
+  /** ---------------- CACHE ---------------- */
+  const cacheKey = `turfs_${pageNum}_${limitNum}_${sortBy}_${sortType}_${query}`;
+  const cached = turfCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return res.status(200).json(cached.data);
+  }
 
-    // Build match condition with text search optimization
-    let matchCondition = {};
-    if (query && query.trim()) {
-        matchCondition = {
-            $or: [
-                { address: { $regex: query.trim(), $options: "i" } },
-                { pincode: { $regex: query.trim(), $options: "i" } },
-                { description: { $regex: query.trim(), $options: "i" } }
-            ]
-        };
-    }
+  /** ---------------- MATCH ---------------- */
+  let matchCondition = {};
+  if (query?.trim()) {
+    matchCondition = {
+      $text: { $search: query.trim() } // ⚡ TEXT SEARCH (indexed)
+    };
+  }
 
-    // Optimized aggregation pipeline with better performance
-    const pipeline = [
-        {
-            $match: matchCondition
-        },
-        {
-            $lookup: {
-                from: "admins",
-                localField: "owner",
-                foreignField: "_id",
-                as: "ownerDetails",
-                pipeline: [
-                    {
-                        $project: {
-                            _id: 1,
-                            userName: 1,
-                            companyName: 1
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            $unwind: {
-                path: "$ownerDetails",
-                preserveNullAndEmptyArrays: true
-            }
-        },
-        {
+  /** ---------------- PIPELINE ---------------- */
+  const pipeline = [
+    { $match: matchCondition },
+
+    // ⚡ SORT + PAGINATION FIRST
+    { $sort: { [sortBy]: sortOrder } },
+    { $skip: skip },
+    { $limit: limitNum },
+
+    // ⚡ LOOKUP ONLY FOR PAGINATED DOCS
+    {
+      $lookup: {
+        from: "admins",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerDetails",
+        pipeline: [
+          {
             $project: {
-                _id: 1,
-                description: 1,
-                price: 1,
-                address: 1,
-                pincode: 1,
-                ContactNumber: 1,
-                turfTiming: 1,
-                photos: { $slice: ["$photos", 3] }, // Limit photos to first 3 for performance
-                averageRating: 1,
-                totalRatings: 1,
-                owner: {
-                    _id: "$ownerDetails._id",
-                    userName: "$ownerDetails.userName",
-                    companyName: "$ownerDetails.companyName"
-                },
-                createdAt: 1,
-                updatedAt: 1
+              _id: 1,
+              userName: 1,
+              companyName: 1
             }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: "$ownerDetails",
+        preserveNullAndEmptyArrays: true
+      }
+    },
+
+    {
+      $project: {
+        _id: 1,
+        description: 1,
+        price: 1,
+        address: 1,
+        pincode: 1,
+        ContactNumber: 1,
+        turfTiming: 1,
+        photos: { $slice: ["$photos", 3] },
+        averageRating: 1,
+        totalRatings: 1,
+        owner: {
+          _id: "$ownerDetails._id",
+          userName: "$ownerDetails.userName",
+          companyName: "$ownerDetails.companyName"
         },
-        {
-            $sort: {
-                [sortBy]: sortOrder
-            }
-        },
-        {
-            $skip: (pageNum - 1) * limitNum
-        },
-        {
-            $limit: limitNum
-        }
-    ];
-
-    // Execute aggregation with parallel operations
-    const [allTurfs, totalCount] = await Promise.all([
-        Turf.aggregate(pipeline),
-        Turf.countDocuments(matchCondition)
-    ]);
-
-    const totalPages = Math.ceil(totalCount / limitNum);
-    const hasNextPage = pageNum < totalPages;
-    const hasPrevPage = pageNum > 1;
-
-    const response = new ApiResponse(200, {
-        turfs: allTurfs,
-        pagination: {
-            currentPage: pageNum,
-            totalPages,
-            totalCount,
-            hasNextPage,
-            hasPrevPage,
-            limit: limitNum
-        }
-    }, "Fetched All Turfs Successfully");
-
-    // Cache the response
-    turfCache.set(cacheKey, {
-        data: response,
-        timestamp: Date.now()
-    });
-
-    // Clean old cache entries periodically
-    if (turfCache.size > 100) {
-        const now = Date.now();
-        for (const [key, value] of turfCache.entries()) {
-            if (now - value.timestamp > CACHE_TTL) {
-                turfCache.delete(key);
-            }
-        }
+        createdAt: 1,
+        updatedAt: 1
+      }
     }
+  ];
 
-    return res.status(200).json(response);
+  /** ---------------- EXECUTION ---------------- */
+  const turfs = await Turf.aggregate(pipeline);
+
+  // ⚡ No expensive countDocuments()
+  const hasNextPage = turfs.length === limitNum;
+
+  const response = new ApiResponse(
+    200,
+    {
+      turfs,
+      pagination: {
+        currentPage: pageNum,
+        hasNextPage,
+        limit: limitNum
+      }
+    },
+    "Fetched All Turfs Successfully"
+  );
+
+  /** ---------------- CACHE STORE ---------------- */
+  turfCache.set(cacheKey, {
+    data: response,
+    timestamp: Date.now()
+  });
+
+  return res.status(200).json(response);
 });
 
 // Get turfs owned by the logged-in admin
