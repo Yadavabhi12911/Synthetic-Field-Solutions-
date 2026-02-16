@@ -1,4 +1,5 @@
 import cron from 'node-cron';
+import axios from 'axios';
 import { Booking } from '../models/booking.models.js';
 import { Turf } from '../models/turf.model.js';
 
@@ -54,8 +55,8 @@ const completeExpiredBookings = async () => {
       if (isBookingExpired(booking)) {
         console.log(`Completing expired booking: ${booking._id}`);
         
-        booking.status = 'completed';
-        await booking.save();
+        // Update status without running document validators (bookingDate validator would fail for past dates)
+        await Booking.updateOne({ _id: booking._id }, { $set: { status: 'completed' } });
         
         completedCount++;
       }
@@ -80,6 +81,24 @@ const initializeCronJobs = () => {
     timezone: "Asia/Kolkata" // Adjust timezone as needed
   });
   
+  // Health check: ping configured URL every 5 minutes to keep instances warm
+  const performHealthCheck = async () => {
+    try {
+      const url = process.env.HEALTH_CHECK_URL || `http://localhost:${process.env.PORT || 8000}/`;
+      const res = await axios.get(url, { timeout: 5000 });
+      console.log(`Health check success for ${url} - status: ${res.status}`);
+    } catch (err) {
+      console.error('Health check failed:', err.message || err);
+    }
+  };
+
+  // Run health check immediately, then every 5 minutes
+  performHealthCheck();
+  cron.schedule('*/5 * * * *', performHealthCheck, {
+    scheduled: true,
+    timezone: "Asia/Kolkata"
+  });
+
   console.log('Cron jobs initialized - checking for expired bookings every 5 minutes');
 };
 
