@@ -1,26 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Settings, 
   User, 
   Lock, 
-  Shield, 
-  Bell, 
-  ArrowLeft, 
   Camera, 
   Save, 
   Eye, 
   EyeOff,
   Building,
-  Mail,
-  Phone,
-  MapPin,
-  Clock,
   AlertTriangle,
   CheckCircle,
-  XCircle
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { 
   getCurrentAdmin, 
   changeAdminPassword, 
@@ -29,6 +20,12 @@ import {
   updateSystemSettings 
 } from '../api';
 import toast from 'react-hot-toast';
+import { Page, PageHeader } from '../components/layout/Page';
+import { Card, CardBody } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { PageSkeleton } from '../components/ui/Skeleton';
+import { cn } from '../lib/cn';
 
 interface AdminProfile {
   _id: string;
@@ -53,7 +50,6 @@ const AdminSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Profile form states
@@ -93,14 +89,10 @@ const AdminSettings: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      console.log('Loading admin settings data...');
       const [adminResponse, settingsResponse] = await Promise.all([
         getCurrentAdmin(),
         getSystemSettings()
       ]);
-
-      console.log('Admin response:', adminResponse);
-      console.log('Settings response:', settingsResponse);
 
       const admin = adminResponse.data;
       setAdminProfile(admin);
@@ -198,111 +190,60 @@ const AdminSettings: React.FC = () => {
     setActiveTab(initialTab as 'profile' | 'password' | 'system');
   }, [searchParams]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-16 px-4 py-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
-          <p className="text-white">Loading settings...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton />;
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'password', label: 'Password', icon: Lock },
-    { id: 'system', label: 'System', icon: Settings }
+    { id: 'system', label: 'System', icon: Settings },
   ];
 
+  const fieldClass =
+    'h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary';
+
   return (
-    <div className="min-h-screen pt-20 px-4 py-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-           {/* Breadcrumb Navigation */}
-          <div className="flex items-center space-x-2 text-sm text-gray-400 mb-4">
-            <button
-              onClick={() => navigate('/admin/dashboard')}
-              className="hover:text-white transition-colors"
-            >
-             
-            </button>
-           
-            <span className="text-white"></span>
-            {activeTab !== 'profile' && (
-              <>
-                
-                <span className="text-teal-400 capitalize">{activeTab}</span>
-              </>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-between mb-4 mt-10 pt-2">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/admin/dashboard')}
-                className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-white" />
-              </button>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                Settings <span className="text-teal-400">Panel</span>
-              </h1>
-            </div>
-          </div>
-          <p className="text-gray-300 text-base sm:text-lg">Manage your profile, security, and system preferences</p>
-        </motion.div>
+    <Page>
+      <PageHeader
+        title="Settings"
+        description="Manage your profile, security, and system preferences."
+      />
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="lg:col-span-1"
-          >
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-              <h3 className="text-lg font-semibold text-white mb-4">Settings</h3>
-              <nav className="space-y-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-colors ${
-                        activeTab === tab.id
-                          ? 'bg-teal-400/20 text-teal-400 border border-teal-400/30'
-                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          </motion.div>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+        <Card className="lg:col-span-1 h-fit">
+          <CardBody>
+            <h3 className="mb-4 text-sm font-semibold text-foreground">Sections</h3>
+            <nav className="space-y-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors',
+                      activeTab === tab.id
+                        ? 'bg-primary-muted text-primary'
+                        : 'text-muted hover:bg-surface-muted hover:text-foreground'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </CardBody>
+        </Card>
 
-          {/* Main Content */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-3"
-          >
+        <div className="lg:col-span-3">
             {/* Profile Tab */}
             {activeTab === 'profile' && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <div className="flex items-center space-x-3 mb-6">
-                  <User className="w-6 h-6 text-teal-400" />
-                  <h2 className="text-xl sm:text-2xl font-bold text-white">Profile Settings</h2>
+              <Card>
+                <CardBody>
+                <div className="mb-6 flex items-center gap-3">
+                  <User className="h-5 w-5 text-primary" />
+                  <h2 className="type-heading">Profile settings</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -324,11 +265,11 @@ const AdminSettings: React.FC = () => {
                             className="w-24 h-24 object-cover"
                           />
                         ) : (
-                            <Building className="w-12 h-12 text-white" />
+                            <Building className="w-12 h-12 text-foreground" />
                           )}
                         </div>
                         <label className="absolute bottom-0 right-0 bg-teal-400 p-2 rounded-full cursor-pointer hover:bg-teal-500 transition-colors">
-                          <Camera className="w-4 h-4 text-white" />
+                          <Camera className="w-4 h-4 text-foreground" />
                           <input
                             type="file"
                             accept="image/*"
@@ -338,96 +279,91 @@ const AdminSettings: React.FC = () => {
                         </label>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">{adminProfile?.companyName}</h3>
-                        <p className="text-gray-300">{adminProfile?.email}</p>
+                        <h3 className="type-heading">{adminProfile?.companyName}</h3>
+                        <p className="text-muted">{adminProfile?.email}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Company Name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Company Name
                     </label>
                     <input
                       type="text"
                       value={profileForm.companyName}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, companyName: e.target.value }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       placeholder="Enter company name"
                     />
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Email Address
                     </label>
                     <input
                       type="email"
                       value={profileForm.email}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       placeholder="Enter email address"
                     />
                   </div>
 
                   {/* Username */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Username
                     </label>
                     <input
                       type="text"
                       value={profileForm.userName}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, userName: e.target.value }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       placeholder="Enter username"
                     />
                   </div>
 
                   {/* Mobile Number */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Mobile Number
                     </label>
                     <input
                       type="tel"
                       value={profileForm.mobileNumber}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       placeholder="Enter mobile number"
                     />
                   </div>
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleProfileUpdate}
-                    disabled={saving}
-                    className="bg-teal-400 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center space-x-2 disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>{saving ? 'Saving...' : 'Save Changes'}</span>
-                  </motion.button>
+                  <Button type="button" onClick={handleProfileUpdate} loading={saving}>
+                    <Save className="h-4 w-4" />
+                    Save changes
+                  </Button>
                 </div>
-              </div>
+                </CardBody>
+              </Card>
             )}
 
-            {/* Password Tab */}
             {activeTab === 'password' && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Lock className="w-6 h-6 text-teal-400" />
-                  <h2 className="text-xl sm:text-2xl font-bold text-white">Change Password</h2>
+              <Card>
+                <CardBody>
+                <div className="mb-6 flex items-center gap-3">
+                  <Lock className="h-5 w-5 text-primary" />
+                  <h2 className="type-heading">Change password</h2>
                 </div>
 
                 <div className="max-w-md space-y-6">
                   {/* Current Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Current Password
                     </label>
                     <div className="relative">
@@ -435,13 +371,13 @@ const AdminSettings: React.FC = () => {
                         type={showPasswords.old ? 'text' : 'password'}
                         value={passwordForm.oldPassword}
                         onChange={(e) => setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }))}
-                        className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors pr-12"
+                        className={cn(fieldClass, 'pr-12')}
                         placeholder="Enter current password"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPasswords(prev => ({ ...prev, old: !prev.old }))}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground"
                       >
                         {showPasswords.old ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -450,7 +386,7 @@ const AdminSettings: React.FC = () => {
 
                   {/* New Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       New Password
                     </label>
                     <div className="relative">
@@ -458,13 +394,13 @@ const AdminSettings: React.FC = () => {
                         type={showPasswords.new ? 'text' : 'password'}
                         value={passwordForm.newPassword}
                         onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                        className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors pr-12"
+                        className={cn(fieldClass, 'pr-12')}
                         placeholder="Enter new password"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground"
                       >
                         {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -473,7 +409,7 @@ const AdminSettings: React.FC = () => {
 
                   {/* Confirm Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Confirm New Password
                     </label>
                     <div className="relative">
@@ -481,13 +417,13 @@ const AdminSettings: React.FC = () => {
                         type={showPasswords.confirm ? 'text' : 'password'}
                         value={passwordForm.confirmPassword}
                         onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors pr-12"
+                        className={cn(fieldClass, 'pr-12')}
                         placeholder="Confirm new password"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground"
                       >
                         {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -496,51 +432,52 @@ const AdminSettings: React.FC = () => {
 
                   {/* Password Requirements */}
                   <div className="bg-slate-700/50 rounded-xl p-4">
-                    <h4 className="text-sm font-medium text-white mb-3">Password Requirements:</h4>
-                    <ul className="space-y-2 text-sm text-gray-300">
+                    <h4 className="type-label mb-3">Password Requirements:</h4>
+                    <ul className="space-y-2 text-sm text-muted">
                       <li className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-teal-400" />
+                        <CheckCircle className="w-4 h-4 text-primary" />
                         <span>At least 6 characters long</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-teal-400" />
+                        <CheckCircle className="w-4 h-4 text-primary" />
                         <span>Should be different from current password</span>
                       </li>
                     </ul>
                   </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <Button
+                    type="button"
+                    className="w-full"
                     onClick={handlePasswordChange}
                     disabled={saving || !passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
-                    className="w-full bg-teal-400 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
+                    loading={saving}
                   >
-                    {saving ? 'Changing Password...' : 'Change Password'}
-                  </motion.button>
+                    Change password
+                  </Button>
                 </div>
-              </div>
+                </CardBody>
+              </Card>
             )}
 
-            {/* System Settings Tab */}
             {activeTab === 'system' && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Settings className="w-6 h-6 text-teal-400" />
-                  <h2 className="text-xl sm:text-2xl font-bold text-white">System Settings</h2>
+              <Card>
+                <CardBody>
+                <div className="mb-6 flex items-center gap-3">
+                  <Settings className="h-5 w-5 text-primary" />
+                  <h2 className="type-heading">System settings</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Booking Time Limit */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Booking Time Limit (minutes)
                     </label>
                     <input
                       type="number"
                       value={settingsForm.bookingTimeLimit}
                       onChange={(e) => setSettingsForm(prev => ({ ...prev, bookingTimeLimit: parseInt(e.target.value) || 30 }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       min="1"
                       max="120"
                     />
@@ -549,14 +486,14 @@ const AdminSettings: React.FC = () => {
 
                   {/* Cancellation Time Limit */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Cancellation Time Limit (minutes)
                     </label>
                     <input
                       type="number"
                       value={settingsForm.cancellationTimeLimit}
                       onChange={(e) => setSettingsForm(prev => ({ ...prev, cancellationTimeLimit: parseInt(e.target.value) || 5 }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       min="1"
                       max="60"
                     />
@@ -565,14 +502,14 @@ const AdminSettings: React.FC = () => {
 
                   {/* Auto Complete Time */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Auto Complete Time (minutes)
                     </label>
                     <input
                       type="number"
                       value={settingsForm.autoCompleteTime}
                       onChange={(e) => setSettingsForm(prev => ({ ...prev, autoCompleteTime: parseInt(e.target.value) || 60 }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       min="30"
                       max="180"
                     />
@@ -581,14 +518,14 @@ const AdminSettings: React.FC = () => {
 
                   {/* Max Bookings Per User */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="mb-2 block type-label">
                       Max Bookings Per User
                     </label>
                     <input
                       type="number"
                       value={settingsForm.maxBookingsPerUser}
                       onChange={(e) => setSettingsForm(prev => ({ ...prev, maxBookingsPerUser: parseInt(e.target.value) || 3 }))}
-                      className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                      className={fieldClass}
                       min="1"
                       max="10"
                     />
@@ -599,10 +536,10 @@ const AdminSettings: React.FC = () => {
                   <div className="md:col-span-2">
                     <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
                       <div className="flex items-center space-x-3">
-                        <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                        <AlertTriangle className="h-6 w-6 text-warning" />
                         <div>
-                          <h4 className="text-white font-medium">Maintenance Mode</h4>
-                          <p className="text-sm text-gray-300">Temporarily disable new bookings</p>
+                          <h4 className="text-foreground font-medium">Maintenance Mode</h4>
+                          <p className="text-sm text-muted">Temporarily disable new bookings</p>
                         </div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
@@ -619,23 +556,17 @@ const AdminSettings: React.FC = () => {
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleSettingsUpdate}
-                    disabled={saving}
-                    className="bg-teal-400 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center space-x-2 disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>{saving ? 'Saving...' : 'Save Settings'}</span>
-                  </motion.button>
+                  <Button type="button" onClick={handleSettingsUpdate} loading={saving}>
+                    <Save className="h-4 w-4" />
+                    Save settings
+                  </Button>
                 </div>
-              </div>
+                </CardBody>
+              </Card>
             )}
-          </motion.div>
         </div>
       </div>
-    </div>
+    </Page>
   );
 };
 

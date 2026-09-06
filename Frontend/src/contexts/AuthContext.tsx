@@ -85,8 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyTokenWithBackend = async (token: string, type: 'user' | 'admin') => {
     try {
       const endpoint = type === 'admin' ? '/admins/getcurrent-admin' : '/users/getcurrent-user';
+      const method = type === 'admin' ? 'POST' : 'GET';
       const response = await fetch(`http://localhost:8000/api/v1${endpoint}`, {
-        method: 'POST',
+        method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

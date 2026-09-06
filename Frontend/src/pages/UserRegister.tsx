@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { User, Lock, Eye, EyeOff, Mail, Phone, UserCheck, MapPin, Building, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { apiRequest, registerUser, registerAdmin } from '../api';
+import { Button } from '../components/ui/Button';
+import { registerUser, registerAdmin } from '../api';
+import { cn } from '../lib/cn';
 
 const UserRegister: React.FC = () => {
   const [userType, setUserType] = useState<'user' | 'turfOwner'>('user');
@@ -86,99 +87,77 @@ const UserRegister: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pt-20 flex items-center justify-center px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-md w-full"
-      >
-        <div className="bg-zinc-800/50 backdrop-blur-lg rounded-2xl p-8 border border-teal-400/20 shadow-2xl">
-          <div className="text-center mb-8">
-            <motion.div
-              animate={{ 
-                rotate: [0, 5, -5, 0],
-                scale: [1, 1.1, 1]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            >
-              {userType === 'user' ? (
-                <UserCheck className="w-8 h-8 text-white" />
-              ) : (
-                <Shield className="w-8 h-8 text-white" />
-              )}
-            </motion.div>
-            
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Join Synthetic Field Solutions</h2>
-            <p className="text-gray-300">Create your account to get started</p>
+    <div className="flex min-h-[calc(100vh-var(--shell-header-height))] items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface shadow-modal">
+        <div className="p-8">
+          <div className="mb-8 text-left">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-primary-muted text-primary">
+              {userType === 'user' ? <UserCheck className="h-7 w-7" /> : <Shield className="h-7 w-7" />}
+            </div>
+            <h1 className="type-title">Create account</h1>
+            <p className="type-body mt-2">Join to book fields or list your venue.</p>
           </div>
 
-          {/* User Type Selection */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-3">
-              I want to sign up as:
-            </label>
-            <div className="flex space-x-2 bg-zinc-700/50 rounded-xl p-1">
+            <p className="type-label mb-3">I want to sign up as</p>
+            <div className="flex gap-2 rounded-md border border-border bg-surface-muted p-1">
               <button
                 type="button"
                 onClick={() => setUserType('user')}
-                className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-md py-3 px-4 type-label transition-colors',
                   userType === 'user'
-                    ? 'bg-teal-400 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
-                }`}
+                    ? 'bg-primary text-white'
+                    : 'text-muted hover:bg-surface hover:text-foreground'
+                )}
               >
-                <User className="w-4 h-4" />
-                <span>Regular User</span>
+                <User className="h-4 w-4" />
+                <span>Player</span>
               </button>
               <button
                 type="button"
                 onClick={() => setUserType('turfOwner')}
-                className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-md py-3 px-4 type-label transition-colors',
                   userType === 'turfOwner'
-                    ? 'bg-teal-400 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
-                }`}
+                    ? 'bg-primary text-white'
+                    : 'text-muted hover:bg-surface hover:text-foreground'
+                )}
               >
-                <Shield className="w-4 h-4" />
-                <span>Turf Owner</span>
+                <Shield className="h-4 w-4" />
+                <span>Field operator</span>
               </button>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="type-label mb-2 block">
                 Username
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="text"
                   name="userName"
                   value={formData.userName}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
                   placeholder="Choose a username"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {userType === 'user' ? 'Full Name' : 'Company Name'}
+              <label className="type-label mb-2 block">
+                {userType === 'user' ? 'Full name' : 'Company name'}
               </label>
               <div className="relative">
                 {userType === 'user' ? (
-                  <UserCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <UserCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 ) : (
-                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 )}
                 <input
                   type="text"
@@ -186,42 +165,42 @@ const UserRegister: React.FC = () => {
                   value={userType === 'user' ? formData.fullName : formData.companyName}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
                   placeholder={userType === 'user' ? 'Enter your full name' : 'Enter company name'}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="type-label mb-2 block">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
                   placeholder="Enter your email"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Mobile Number
+              <label className="type-label mb-2 block">
+                Mobile number
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type="tel"
                   name="mobileNumber"
                   value={formData.mobileNumber}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
                   placeholder="Enter your mobile number"
                 />
               </div>
@@ -229,17 +208,17 @@ const UserRegister: React.FC = () => {
 
             {userType === 'user' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="type-label mb-2 block">
                   Address
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                   <input
                     type="text"
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                    className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
                     placeholder="Enter your address"
                   />
                 </div>
@@ -247,7 +226,7 @@ const UserRegister: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="type-label mb-2 block">
                 {userType === 'user' ? 'Profile Picture (optional)' : 'Profile Picture (required)'}
               </label>
               <input
@@ -255,29 +234,29 @@ const UserRegister: React.FC = () => {
                 accept="image/*"
                 required={userType === 'turfOwner'}
                 onChange={e => setProfilePic(e.target.files?.[0] || null)}
-                className="w-full text-gray-300 bg-zinc-700/50 border border-gray-600 rounded-xl focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="type-label mb-2 block">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-12 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                  className="h-10 w-full rounded-md border border-border bg-surface py-2 pl-9 pr-10 text-sm text-foreground placeholder:text-muted focus:border-primary"
                   placeholder="Create a password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -285,58 +264,45 @@ const UserRegister: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="type-label mb-2 block">
                 Confirm Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-12 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
+                  className="h-10 w-full rounded-md border border-border bg-surface py-2 pl-9 pr-10 text-sm text-foreground placeholder:text-muted focus:border-primary"
                   placeholder="Confirm your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-foreground transition-colors"
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-teal-400 to-teal-600 hover:from-teal-500 hover:to-teal-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating Account...
-                </div>
-              ) : (
-                userType === 'user' ? 'Create User Account' : 'Create Turf Owner Account'
-              )}
-            </motion.button>
+            <Button type="submit" className="w-full" loading={isLoading}>
+              {userType === 'user' ? 'Create player account' : 'Create operator account'}
+            </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-300">
+          <div className="type-body-sm mt-6 text-left">
+            <p>
               Already have an account?{' '}
-              <Link to="/login" className="text-teal-400 hover:text-teal-300 transition-colors">
+              <Link to="/login" className="text-primary hover:underline">
                 Sign in
               </Link>
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

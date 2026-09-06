@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Shield, Lock, Eye, EyeOff, Mail, Phone, Building } from 'lucide-react';
+import { Shield, Building } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { registerAdmin } from '../api';
+import { AuthCard } from '../components/layout/AuthCard';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { cn } from '../lib/cn';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 
 const AdminRegister: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -19,24 +23,21 @@ const AdminRegister: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [adminPic, setAdminPic] = useState<File | null>(null);
-  
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
     if (!adminPic) {
-      toast.error('Admin profile picture is required');
+      toast.error('Venue logo or photo is required');
       return;
     }
 
     setIsLoading(true);
-
     try {
       const form = new FormData();
       form.append('userName', formData.userName);
@@ -47,222 +48,115 @@ const AdminRegister: React.FC = () => {
       form.append('adminPic', adminPic);
       const data = await registerAdmin(form);
       login(data.data.user, 'admin', data.data.accessToken);
-      toast.success('Admin registration successful!');
+      toast.success('Registration successful!');
       navigate('/admin/dashboard');
-    } catch (error) {
+    } catch {
       toast.error('Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
+  const passwordField = (
+    name: 'password' | 'confirmPassword',
+    label: string,
+    show: boolean,
+    toggle: () => void
+  ) => (
+    <div className="flex flex-col gap-2">
+      <label className="type-label">{label}</label>
+      <div className="relative">
+        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        <input
+          type={show ? 'text' : 'password'}
+          name={name}
+          value={formData[name]}
+          onChange={(e) => setFormData((prev) => ({ ...prev, [name]: e.target.value }))}
+          required
+          className={cn(
+            'h-10 w-full rounded-md border border-border bg-surface py-2 pl-9 pr-10 text-sm text-foreground placeholder:text-muted focus:border-primary'
+          )}
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+          aria-label={show ? 'Hide password' : 'Show password'}
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen pt-20 flex items-center justify-center px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-md w-full"
-      >
-        <div className="bg-zinc-800/50 backdrop-blur-lg rounded-2xl p-8 border border-teal-400/20 shadow-2xl">
-          <div className="text-center mb-8">
-            <motion.div
-              animate={{ 
-                rotate: [0, 5, -5, 0],
-                scale: [1, 1.1, 1]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            >
-              <Shield className="w-8 h-8 text-white" />
-            </motion.div>
-            
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Join as Admin</h2>
-            <p className="text-gray-300">Register to manage your fields</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Username
-              </label>
-              <div className="relative">
-                <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="userName"
-                  value={formData.userName}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="Choose admin username"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Company Name
-              </label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="companyName"
-                  value={formData.companyName}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="Enter company name"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="Enter business email"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Mobile Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="tel"
-                  name="mobileNumber"
-                  value={formData.mobileNumber}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="Enter mobile number"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-12 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-12 py-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Profile Picture
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                required
-                onChange={e => {
-                  if (e.target.files && e.target.files[0]) {
-                    setAdminPic(e.target.files[0]);
-                  } else {
-                    setAdminPic(null);
-                  }
-                }}
-                className="w-full py-2 px-3 bg-zinc-700/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-              />
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-teal-400 to-teal-600 hover:from-teal-500 hover:to-teal-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating Account...
-                </div>
-              ) : (
-                'Register as Admin'
-              )}
-            </motion.button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-300">
-              Already have an admin account?{' '}
-              <Link to="/admin/login" className="text-teal-400 hover:text-teal-300 transition-colors">
-                Sign in
-              </Link>
-            </p>
-          </div>
+    <AuthCard
+      title="Register your venue"
+      description="Create an operator account to list fields and manage bookings."
+      icon={<Shield className="h-7 w-7" />}
+      footer={
+        <>
+          Already registered?{' '}
+          <Link to="/admin/login" className="text-primary hover:underline">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Username"
+          name="userName"
+          value={formData.userName}
+          onChange={(e) => setFormData((prev) => ({ ...prev, userName: e.target.value }))}
+          required
+        />
+        <Input
+          label="Company / venue name"
+          name="companyName"
+          value={formData.companyName}
+          onChange={(e) => setFormData((prev) => ({ ...prev, companyName: e.target.value }))}
+          required
+        />
+        <Input
+          label="Email"
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+          required
+        />
+        <Input
+          label="Mobile number"
+          type="tel"
+          name="mobileNumber"
+          value={formData.mobileNumber}
+          onChange={(e) => setFormData((prev) => ({ ...prev, mobileNumber: e.target.value }))}
+          required
+        />
+        {passwordField('password', 'Password', showPassword, () => setShowPassword(!showPassword))}
+        {passwordField(
+          'confirmPassword',
+          'Confirm password',
+          showConfirmPassword,
+          () => setShowConfirmPassword(!showConfirmPassword)
+        )}
+        <div className="flex flex-col gap-2">
+          <label className="type-label">Venue photo</label>
+          <input
+            type="file"
+            accept="image/*"
+            required
+            onChange={(e) => setAdminPic(e.target.files?.[0] || null)}
+            className="text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary-muted file:px-3 file:py-2 file:text-sm file:text-primary"
+          />
         </div>
-      </motion.div>
-    </div>
+        <Button type="submit" className="w-full" loading={isLoading}>
+          <Building className="h-4 w-4" />
+          Create operator account
+        </Button>
+      </form>
+    </AuthCard>
   );
 };
 
