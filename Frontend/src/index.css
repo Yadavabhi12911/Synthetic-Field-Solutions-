@@ -43,6 +43,7 @@
     font-family: var(--font-sans);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+    overflow-x: clip;
   }
 
   body {
@@ -92,6 +93,32 @@
     letter-spacing: -0.03em;
     line-height: 1.1;
     text-wrap: balance;
+  }
+
+  .type-display-hero {
+    color: rgb(var(--color-foreground));
+    font-size: clamp(2.6rem, 7.2vw, 4.5rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  .type-display-hero-accent {
+    color: rgb(var(--color-primary));
+    font-size: clamp(2.6rem, 7.2vw, 4.5rem);
+    font-weight: 600;
+    font-style: italic;
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+  }
+
+  .hero-pitch-mark {
+    position: absolute;
+    inset-inline: 0;
+    bottom: -0.08em;
+    height: 0.12em;
+    border-radius: 999px;
+    background: currentColor;
   }
 
   .type-title {

@@ -38,11 +38,18 @@ const LandingPage: React.FC = () => {
           aria-hidden
         />
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-center lg:gap-14 lg:pt-12 lg:pb-20">
-          <div className="landing-enter text-left">
-            <h1 className="type-display max-w-xl">
-              Book Sports Fields by the hour
+          <div className="landing-enter min-w-0 text-left">
+            <h1 className="max-w-full text-left">
+              <span className="type-display-hero block">Your Game,</span>
+              <span className="type-display-hero-accent mt-3 block max-w-full pb-1">
+                Just a Tap
+                <span className="relative mt-0 block w-fit max-w-full">
+                  Away.
+                  <span className="hero-pitch-mark" aria-hidden />
+                </span>
+              </span>
             </h1>
-            <p className="type-body mt-5 max-w-[38ch] text-lg">
+            <p className="type-body mt-5 max-w-[min(38ch,100%)] text-lg">
               Browse real turfs, check live slots, and manage bookings as a player or operator.
             </p>
 
@@ -299,7 +306,7 @@ const LandingPage: React.FC = () => {
 
       <footer className="border-t border-border py-10">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-4 type-body-sm sm:flex-row sm:items-center sm:px-6">
-          <p>© {new Date().getFullYear()} Synthetic Field Solutions</p>
+          <p>© {new Date().getFullYear()} Turfly</p>
           <nav className="flex flex-wrap items-center justify-center gap-4">
             <Link to="/turfs" className="transition-colors hover:text-foreground">
               Browse fields

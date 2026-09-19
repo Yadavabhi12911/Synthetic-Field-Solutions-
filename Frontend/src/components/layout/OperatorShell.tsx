@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/cn';
 import { BrandMark } from './BrandMark';
-import { CommandPaletteTrigger } from '../command-palette/CommandPaletteTrigger';
 import { operatorNavItems } from './nav';
 import { SceneBackdrop } from '../motion/SceneBackdrop';
 
@@ -61,9 +60,6 @@ export function OperatorShell({ children }: OperatorShellProps) {
           <div className="border-b border-border px-5 py-4">
             <BrandMark />
             <p className="type-meta mt-3">Operator console</p>
-            <div className="mt-4">
-              <CommandPaletteTrigger className="w-full" />
-            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <SidebarNav />
@@ -95,7 +91,6 @@ export function OperatorShell({ children }: OperatorShellProps) {
           <header className="sticky top-0 z-30 flex h-shell items-center justify-between gap-3 border-b border-white/[0.06] bg-background/75 px-4 backdrop-blur-xl sm:px-6 lg:hidden">
             <BrandMark compact />
             <div className="flex items-center gap-2">
-              <CommandPaletteTrigger compact />
               <button
               type="button"
               className="rounded-md p-2 text-muted hover:bg-surface-muted hover:text-foreground"

@@ -8,16 +8,22 @@ interface BrandMarkProps {
 
 export function BrandMark({ compact = false, className }: BrandMarkProps) {
   return (
-    <Link to="/" className={cn('flex items-center gap-3 text-left', className)}>
-      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-sm font-semibold text-white">
-        SF
-      </div>
-      {!compact && (
-        <div className="min-w-0">
-          <div className="type-label truncate">Synthetic Field</div>
-          <div className="type-meta truncate">Solutions</div>
-        </div>
+    <Link
+      to="/"
+      aria-label="Turfly home"
+      className={cn(
+        'relative block shrink-0 overflow-hidden',
+        compact ? 'h-9 w-9' : 'h-9 w-9 sm:h-11 sm:w-11',
+        className
       )}
+    >
+      <img
+        src="/Turfly-logo.png"
+        alt=""
+        width={44}
+        height={44}
+        className="h-full w-full object-contain brightness-0 invert [transform:scale(1.72)]"
+      />
     </Link>
   );
 }

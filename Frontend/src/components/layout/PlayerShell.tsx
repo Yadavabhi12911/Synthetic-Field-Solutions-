@@ -6,7 +6,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/cn';
 import { BrandMark } from './BrandMark';
 import { Button } from '../ui/Button';
-import { CommandPaletteTrigger } from '../command-palette/CommandPaletteTrigger';
 import { playerNavItems } from './nav';
 import { SceneBackdrop } from '../motion/SceneBackdrop';
 
@@ -73,7 +72,6 @@ export function PlayerShell({ children }: PlayerShellProps) {
           </nav>
 
           <div className="hidden items-center gap-2 md:flex">
-            <CommandPaletteTrigger />
             {user ? (
               <div className="relative" ref={profileRef}>
                 <button
@@ -135,7 +133,6 @@ export function PlayerShell({ children }: PlayerShellProps) {
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
-            <CommandPaletteTrigger compact />
             <button
               type="button"
               className="rounded-md p-2 text-muted hover:bg-surface-muted hover:text-foreground"

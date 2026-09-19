@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BrandMark } from './BrandMark';
 import { Button } from '../ui/Button';
-import { CommandPaletteTrigger } from '../command-palette/CommandPaletteTrigger';
 import { cn } from '../../lib/cn';
 import { SceneBackdrop } from '../motion/SceneBackdrop';
 
@@ -20,37 +19,36 @@ export function PublicShell({ children, showAuthActions = true }: PublicShellPro
       {!isLanding && <SceneBackdrop />}
       <header
         className={cn(
-          'sticky top-0 z-20 border-b border-white/[0.06] bg-background/75 backdrop-blur-xl',
+          'sticky top-0 z-20 w-full border-b border-white/[0.06] bg-background/75 backdrop-blur-xl'
         )}
       >
-        <div className="mx-auto flex h-shell max-w-7xl items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex h-shell w-full max-w-7xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
           <BrandMark />
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-2">
             {isLanding && (
               <Link
                 to="/turfs"
-                className="type-label mr-1 hidden text-muted transition-colors hover:text-foreground sm:inline"
+                className="type-label hidden text-muted transition-colors hover:text-foreground sm:inline"
               >
                 Browse fields
               </Link>
             )}
-            <CommandPaletteTrigger compact className="hidden sm:inline-flex" />
             {showAuthActions && (
-            <div className="flex items-center gap-2">
-              <Link to="/login">
-                <Button variant="ghost" size="sm">
-                  Login
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button size="sm">Sign up</Button>
-              </Link>
-            </div>
+              <>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm">
+                    Login
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button size="sm">Sign up</Button>
+                </Link>
+              </>
             )}
           </div>
         </div>
       </header>
-      <main className="relative z-10">{children}</main>
+      <main className="relative z-10 min-w-0">{children}</main>
     </div>
   );
 }
