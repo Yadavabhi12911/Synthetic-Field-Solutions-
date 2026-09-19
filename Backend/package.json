@@ -14,7 +14,7 @@
     "node-cron": "^4.2.1",
     "nodemon": "^3.1.9"
   },
-  "name": "turf-system",
+  "name": "turfly",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",

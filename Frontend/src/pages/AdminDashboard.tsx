@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Settings, BarChart3, Users, Calendar, MapPin, Edit, Trash2, Star, X, Eye, CheckCircle, Clock, User } from 'lucide-react';
+import { Plus, Settings, BarChart3, Users, Calendar, MapPin, Edit, Trash2, Star, X, Eye, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import CreateTurfModal from '../components/CreateTurfModal';
 import { getAdminTurfs, getAdminBookingHistory, toggleTurfSlotStatus, deleteTurf, updateTurf } from '../api';
+import { computeAverageTurfRating, countBookingsByStatus } from '../utils/bookingUi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Page, PageHeader, SectionTitle } from '../components/layout/Page';
+import { Card, CardBody } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { PageSkeleton } from '../components/ui/Skeleton';
+import { cn } from '../lib/cn';
+import { BookingDetailsModal } from '../components/BookingDetailsModal';
+import { Modal } from '../components/ui/Modal';
+import { PitchStage } from '../components/landing/PitchStage';
+import { StatCard } from '../components/ui/StatCard';
+import { slotsFromTimings } from '../components/landing/pitchSlots';
 
 interface Turf {
   _id: string;
@@ -47,7 +58,6 @@ interface Stat {
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [stats, setStats] = useState<Stat[]>([]);
   const [turfs, setTurfs] = useState<Turf[]>([]);
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,8 +83,6 @@ const AdminDashboard: React.FC = () => {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
         setRecentBookings(sortedBookings);
-        // Optionally, calculate stats here or fetch from a stats endpoint
-        setStats([/* fill with calculated or fetched stats */]);
       })
       .catch(err => setError('Failed to load admin dashboard data'))
       .finally(() => setLoading(false));
@@ -86,10 +94,10 @@ const AdminDashboard: React.FC = () => {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-4 h-4 ${
+            className={`h-4 w-4 ${
               star <= rating
-                ? 'text-yellow-400 fill-current'
-                : 'text-gray-400'
+                ? 'fill-warning text-warning'
+                : 'text-muted'
             }`}
           />
         ))}
@@ -157,302 +165,250 @@ const AdminDashboard: React.FC = () => {
     setSelectedBooking(null);
   };
 
+  const bookingStats = countBookingsByStatus(recentBookings);
+  const averageRating = computeAverageTurfRating(turfs);
+  const dashboardStats: Stat[] = [
+    { icon: MapPin, color: '', value: turfs.length, label: 'Total fields' },
+    { icon: Calendar, color: '', value: bookingStats.upcoming, label: 'Upcoming bookings' },
+    {
+      icon: Star,
+      color: '',
+      value: averageRating ? averageRating.toFixed(1) : 'n/a',
+      label: 'Avg field rating',
+    },
+    { icon: Users, color: '', value: bookingStats.completed, label: 'Completed bookings' },
+  ];
+
+  const bookingStatusTone = (status: string) => {
+    if (status === 'confirmed') return 'primary' as const;
+    if (status === 'completed') return 'success' as const;
+    if (status === 'canceled') return 'danger' as const;
+    return 'warning' as const;
+  };
+
+  if (loading) return <PageSkeleton />;
+
+  if (error) {
+    return (
+      <Page>
+        <Card className="border-danger/30">
+          <CardBody className="py-12 text-center">
+            <p className="text-danger">{error}</p>
+            <Button type="button" variant="secondary" className="mt-4" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </CardBody>
+        </Card>
+      </Page>
+    );
+  }
+
   return (
-    <div className="min-h-screen pt-20 px-4 py-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Welcome Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex justify-between items-center mt-10 p-2">
-            <div className="flex flex-col items-center justify-center gap-2">
-              <div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                   <span 
-                    className="text-teal-400 hover:text-teal-300 cursor-pointer transition-colors duration-300  inline-flex items-center group ml-2"
-                    onClick={() => navigate('/admin/settings?tab=profile')}
-                    title="Click to view profile & settings"
-                  >
-                    {user?.companyName}
-                   
-                  </span>
-                </h1>
-                
-              </div>
-              <p className="text-gray-300 text-base sm:text-lg">Manage your turfs and bookings</p>
-         
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowCreateModal(true)}
-              className="bg-gradient-to-r from-teal-400 to-teal-600 hover:from-teal-500 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 shadow-2xl"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add New Field</span>
-            </motion.button>
-          </div>
-        </motion.div>
+    <Page>
+      <PageHeader
+        title={user?.companyName || 'Operator dashboard'}
+        description="Manage your fields and bookings."
+        action={
+          <Button type="button" onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4" />
+            Add field
+          </Button>
+        }
+      />
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
-        >
-          {stats.length > 0 ? (
-            stats.map((stat, index) => (
-              <motion.div
-                key={`stat-${index}`}
-                whileHover={{ scale: 1.05, rotateY: 5 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:border-teal-400/50 transition-all duration-300"
-              >
-                <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
-                              <div className="text-xl sm:text-2xl font-bold text-white mb-1">{stat.value}</div>
-              <div className="text-gray-300 text-sm">{stat.label}</div>
-            </motion.div>
-          ))
-        ) : (
-          // Placeholder stats when no data is available
-          [
-            { icon: MapPin, color: 'from-blue-500 to-purple-600', value: turfs.length, label: 'Total Fields' },
-            { icon: Calendar, color: 'from-emerald-500 to-teal-600', value: recentBookings.length, label: 'Recent Bookings' },
-            { icon: Star, color: 'from-yellow-500 to-orange-600', value: '4.5', label: 'Avg Rating' },
-            { icon: Users, color: 'from-purple-500 to-pink-600', value: '0', label: 'Active Users' }
-          ].map((stat, index) => (
-            <motion.div
-              key={`placeholder-stat-${index}`}
-              whileHover={{ scale: 1.05, rotateY: 5 }}
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:border-teal-400/50 transition-all duration-300"
-            >
-              <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-gray-300 text-sm">{stat.label}</div>
-              </motion.div>
-            ))
-          )}
-        </motion.div>
+      <div className="mb-8 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-stretch">
+        <PitchStage
+          compact
+          slots={slotsFromTimings(turfs[0]?.turfTiming, turfs[0]?.price)}
+          title={turfs[0]?.description || 'Your pitch'}
+          subtitle={turfs[0]?.address || 'Add a field to see live slots here'}
+        />
+        <div className="grid grid-cols-2 gap-4">
+          {dashboardStats.map((stat) => (
+            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
+          ))}
+        </div>
+      </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Your Turfs */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Your Fields</h2>
-              <button className="text-teal-400 hover:text-teal-300 text-sm" onClick={() => setShowAvailableOnly(v => !v)}>
-                {showAvailableOnly ? 'Show All Slots' : 'Show Only Available Slots'}
-              </button>
-            </div>
-            
+      <div className="grid gap-8 lg:grid-cols-2">
+        <Card>
+          <CardBody>
+            <SectionTitle
+              action={
+                <Button type="button" variant="ghost" size="sm" onClick={() => setShowAvailableOnly((v) => !v)}>
+                  {showAvailableOnly ? 'Show all slots' : 'Available only'}
+                </Button>
+              }
+            >
+              Your fields
+            </SectionTitle>
+
             <div className="space-y-4">
-              {turfs.map((turf) => (
-                <motion.div
-                  key={turf._id}
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-teal-400/30 transition-all duration-300"
-                >
-                  <div className="flex space-x-4">
-                    <div className="flex space-x-2">
-                      {Array.isArray(turf.photos) && turf.photos.length > 0
-                        ? turf.photos.map((photo, idx) => (
+              {turfs.length === 0 ? (
+                <p className="py-8 text-center text-muted">No fields yet. Add your first field to get started.</p>
+              ) : (
+                turfs.map((turf) => (
+                  <div
+                    key={turf._id}
+                    className="rounded-lg border border-border bg-surface-muted p-4"
+                  >
+                    <div className="flex gap-4">
+                      <div className="flex gap-2">
+                        {turf.photos?.length ? (
+                          turf.photos.map((photo, idx) => (
                             <img
                               key={`${turf._id}-photo-${idx}`}
                               src={photo.photos}
                               alt={turf.description}
-                              className="w-16 h-16 rounded-lg object-cover border border-white/20 cursor-pointer"
+                              className="h-16 w-16 cursor-pointer rounded-md border border-border object-cover"
                               onClick={() => setLightboxImg(photo.photos)}
                             />
                           ))
-                        : (
-                            <img
-                              key={`${turf._id}-placeholder`}
-                              src="/placeholder-turf.jpg"
-                              alt={turf.description}
-                              className="w-16 h-16 rounded-lg object-cover border border-white/20"
-                            />
-                          )
-                      }
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-white">{turf.description}</h3>
-                        <div className="flex space-x-2">
-                          <button
-                            className="p-1 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-                            onClick={() => handleEditTurf(turf._id)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="p-1 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
-                            onClick={() => handleDeleteTurf(turf._id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary-muted text-primary">
+                            <MapPin className="h-5 w-5" />
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center text-gray-300 text-sm mb-2">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        <span>{turf.address}</span>
-                      </div>
-                      {turf.averageRating > 0 && (
-                        <div className="flex items-center space-x-2 mb-2">
-                          {renderStars(turf.averageRating)}
-                          <span className="text-sm text-gray-300">
-                            {turf.averageRating.toFixed(1)} ({turf.totalRatings} reviews)
-                          </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                          <h3 className="type-heading">{turf.description}</h3>
+                          <div className="flex gap-1">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => handleEditTurf(turf._id)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button type="button" variant="danger" size="sm" onClick={() => handleDeleteTurf(turf._id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex justify-between items-center">
-                        <span className="text-teal-400 font-semibold pr-1 mr-2">{turf.price}</span>
-                        {/* Time slots */}
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {Array.isArray(turf.turfTiming) && turf.turfTiming.length > 0
-                            ? turf.turfTiming
-                                .filter(slot => !showAvailableOnly || slot.status)
-                                .map((slot, idx) => (
-                                  <span
+                        <div className="mb-2 flex items-center type-body-sm">
+                          <MapPin className="mr-1 h-4 w-4" />
+                          <span className="truncate">{turf.address}</span>
+                        </div>
+                        {turf.averageRating > 0 && (
+                          <div className="mb-2 flex items-center gap-2">
+                            {renderStars(turf.averageRating)}
+                            <span className="text-xs text-muted">
+                              {turf.averageRating.toFixed(1)} ({turf.totalRatings})
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="type-numeric text-primary">{turf.price}</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {turf.turfTiming?.length ? (
+                              turf.turfTiming
+                                .filter((slot) => !showAvailableOnly || slot.status)
+                                .map((slot) => (
+                                  <button
                                     key={`${turf._id}-slot-${slot.time}`}
-                                    className={`px-2 py-1 rounded text-xs font-medium cursor-pointer ${
-                                      slot.status
-                                        ? 'bg-teal-500/20 text-teal-400'
-                                        : 'bg-gray-500/20 text-gray-400'
-                                    }`}
-                                    title={slot.status ? 'Available (Click to mark unavailable)' : 'Unavailable (Click to mark available)'}
+                                    type="button"
                                     onClick={() => handleConfirmToggle(turf._id, slot.time, slot.status)}
+                                    className={cn(
+                                      'rounded px-2 py-1 text-xs font-medium transition-colors',
+                                      slot.status
+                                        ? 'bg-primary-muted text-primary hover:bg-primary/20'
+                                        : 'bg-surface text-muted hover:bg-surface-muted'
+                                    )}
+                                    title={
+                                      slot.status
+                                        ? 'Available - click to mark unavailable'
+                                        : 'Unavailable - click to mark available'
+                                    }
                                   >
                                     {slot.time}
-                                  </span>
+                                  </button>
                                 ))
-                            : <span key={`${turf._id}-no-slots`} className="text-gray-400 text-xs">No slots</span>
-                          }
+                            ) : (
+                              <span className="text-xs text-muted">No slots</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
+                ))
+              )}
             </div>
-          </motion.div>
+          </CardBody>
+        </Card>
 
-          {/* Recent Bookings */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Recent Bookings</h2>
-              <button 
-                onClick={() => navigate('/admin/bookings')}
-                className="text-teal-400 hover:text-teal-300 text-sm hover:underline transition-colors"
-              >
-                View All
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              {recentBookings.map((booking) => (
-                <motion.div
-                  key={booking.id}
-                  whileHover={{ scale: 1.02 }}
-                  className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-teal-400/30 transition-all duration-300 cursor-pointer"
-                  onClick={() => handleViewBookingDetails(booking)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-white">{booking.userName}</h3>
-                      <p className="text-gray-300 text-sm">{booking.turfName}</p>
+        <Card>
+          <CardBody>
+            <SectionTitle
+              action={
+                <Button type="button" variant="ghost" size="sm" onClick={() => navigate('/admin/bookings')}>
+                  View all
+                </Button>
+              }
+            >
+              Recent bookings
+            </SectionTitle>
+
+            <div className="space-y-3">
+              {recentBookings.length === 0 ? (
+                <p className="py-8 text-center text-muted">No bookings yet.</p>
+              ) : (
+                recentBookings.slice(0, 5).map((booking) => (
+                  <button
+                    key={booking.id}
+                    type="button"
+                    onClick={() => handleViewBookingDetails(booking)}
+                    className="w-full rounded-lg border border-border bg-surface-muted p-4 text-left transition-colors hover:border-primary/40"
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="type-heading">{booking.userName}</h3>
+                        <p className="text-sm text-muted">{booking.turfName}</p>
+                      </div>
+                      {booking.amount && booking.amount !== '₹0' ? (
+                        <span className="font-semibold text-primary">{booking.amount}</span>
+                      ) : (
+                        <span className="text-sm text-muted">Price not set</span>
+                      )}
                     </div>
-                    {booking.amount && booking.amount !== '₹0' ? (
-                      <span className="text-teal-400 font-bold">{booking.amount}</span>
-                    ) : (
-                      <span className="text-gray-400 text-sm">Price not set</span>
-                    )}
-                  </div>
-                  <div className="flex items-center text-gray-300 text-sm mb-2">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span>{booking.date} • {booking.time}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      booking.status === 'confirmed' 
-                        ? 'bg-teal-500/20 text-teal-400' 
-                        : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>
-                      {booking.status}
-                    </span>
-                    <Eye className="w-4 h-4 text-gray-400" />
-                  </div>
-                </motion.div>
-              ))}
+                    <div className="mb-3 flex items-center text-sm text-muted">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {booking.date} • {booking.time}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge tone={bookingStatusTone(booking.status)} className="capitalize">
+                        {booking.status}
+                      </Badge>
+                      <Eye className="h-4 w-4 text-muted" />
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
-          </motion.div>
-        </div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
-        >
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-teal-400 to-teal-600 hover:from-teal-500 hover:to-teal-700 text-white p-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
-              onClick={() => setShowCreateModal(true)}
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Turf</span>
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 text-white p-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
-              onClick={() => navigate('/admin/analytics')}
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span>Analytics</span>
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-teal-600 to-teal-800 hover:from-teal-700 hover:to-teal-900 text-white p-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
-              onClick={() => navigate('/admin/users')}
-            >
-              <Users className="w-5 h-5" />
-              <span>Users</span>
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-teal-700 to-teal-900 hover:from-teal-800 hover:to-teal-950 text-white p-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
-              onClick={() => navigate('/admin/settings')}
-            >
-              <Settings className="w-5 h-5" />
-              <span>Settings</span>
-            </motion.button>
-          </div>
-        </motion.div>
+          </CardBody>
+        </Card>
       </div>
+
+      <Card className="mt-8">
+        <CardBody>
+          <SectionTitle>Quick actions</SectionTitle>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Button type="button" onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4" />
+              Add field
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate('/admin/analytics')}>
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate('/admin/users')}>
+              <Users className="h-4 w-4" />
+              Users
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate('/admin/settings')}>
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Create Turf Modal */}
       {showCreateModal && (
@@ -506,167 +462,37 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Confirmation Dialog */}
       {confirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="bg-zinc-800 rounded-xl p-8 shadow-2xl border border-teal-400/30 min-w-[300px]">
-            <h2 className="text-xl font-bold text-white mb-4">Confirm Slot Status Change</h2>
-            <p className="text-gray-300 mb-6">
-              Are you sure you want to mark <span className="font-semibold text-teal-400">{confirmDialog.time}</span> as {confirmDialog.status ? <span className="text-red-400">unavailable</span> : <span className="text-teal-400">available</span>}?
-            </p>
-            <div className="flex justify-end gap-4">
-              <button onClick={handleConfirmDialogNo} className="px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700">Cancel</button>
-              <button onClick={handleConfirmDialogYes} className="px-4 py-2 rounded bg-teal-600 text-white hover:bg-teal-700">Yes</button>
+        <Modal
+          open={!!confirmDialog}
+          onClose={handleConfirmDialogNo}
+          title="Confirm slot change"
+          size="sm"
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={handleConfirmDialogNo}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleConfirmDialogYes}>
+                Confirm
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Booking Details Modal */}
-      {showBookingDetailsModal && selectedBooking && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={closeBookingDetailsModal}
+          }
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-teal-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Booking Details</h3>
-                  <p className="text-sm text-gray-500">Complete booking information</p>
-                </div>
-              </div>
-              <button
-                onClick={closeBookingDetailsModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="space-y-4">
-              {/* Turf Image Placeholder */}
-              <div className="w-full h-48 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center">
-                <div className="text-center text-white">
-                  <Calendar className="w-12 h-12 mx-auto mb-3" />
-                  <p className="font-medium">{selectedBooking.turfName}</p>
-                </div>
-              </div>
-
-              {/* Booking Info Grid - 4 rows × 2 columns */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Row 1 */}
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-4 h-4 text-teal-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Turf Name</p>
-                    <p className="font-medium text-gray-900">{selectedBooking.turfName || 'N/A'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-600 font-bold">👤</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">User Name</p>
-                    <p className="font-medium text-gray-900">{selectedBooking.userName || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {/* Row 2 */}
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <span className="text-indigo-600 font-bold">📧</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">User Email</p>
-                    <p className="font-medium text-gray-900">{selectedBooking.userEmail || 'N/A'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                    <span className="text-teal-600 font-bold">📱</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Mobile Number</p>
-                    <p className="font-medium text-gray-900">{selectedBooking.userMobile || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {/* Row 3 */}
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Time Slot</p>
-                    <p className="font-medium text-gray-900">{selectedBooking.time || selectedBooking.timeSlot || 'N/A'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <span className="text-orange-600 font-bold">₹</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Amount</p>
-                    <p className="font-medium text-gray-900">{selectedBooking.amount || (selectedBooking.price ? `₹${selectedBooking.price}` : 'N/A')}</p>
-                  </div>
-                </div>
-
-                {/* Row 4 */}
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Play Date</p>
-                    <p className="font-medium text-gray-900">
-                      {selectedBooking.date || (selectedBooking.bookingDate ? new Date(selectedBooking.bookingDate).toLocaleDateString() : 'N/A')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
-                      selectedBooking.status === 'confirmed' ? 'bg-teal-100 text-teal-700' :
-                      selectedBooking.status === 'completed' ? 'bg-purple-100 text-purple-700' :
-                      selectedBooking.status === 'canceled' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {selectedBooking.status}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
+          <p className="text-sm text-muted">
+            Mark <span className="font-medium text-foreground">{confirmDialog.time}</span> as{' '}
+            {confirmDialog.status ? 'unavailable' : 'available'}?
+          </p>
+        </Modal>
       )}
-    </div>
+
+      <BookingDetailsModal
+        open={showBookingDetailsModal}
+        onClose={closeBookingDetailsModal}
+        booking={selectedBooking}
+        variant="operator"
+      />
+    </Page>
   );
 };
 

@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Settings, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Save, 
-  ArrowLeft,
-  Camera,
-  Lock,
-  Bell,
-  Globe
-} from 'lucide-react';
+import { Settings, User, Bell, Camera, Save } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getCurrentUser, updateUserDetails, updateUserPreferences } from '../api';
 import toast from 'react-hot-toast';
+import { Page, PageHeader } from '../components/layout/Page';
+import { Card, CardBody } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { PageSkeleton } from '../components/ui/Skeleton';
+import { cn } from '../lib/cn';
 
 interface User {
   _id: string;
@@ -25,11 +17,11 @@ interface User {
   profilePic?: string;
   mobileNumber?: string;
   address?: string;
-  preferences?: {
-    notifications: boolean;
-    language: string;
-  };
+  preferences?: { notifications: boolean; language: string };
 }
+
+const fieldClass =
+  'h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary';
 
 const UserPreferences: React.FC = () => {
   const navigate = useNavigate();
@@ -37,12 +29,8 @@ const UserPreferences: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState(() => {
-    const tabParam = searchParams.get('tab');
-    return tabParam || 'preferences';
-  });
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'preferences');
 
-  // Form states
   const [formData, setFormData] = useState({
     fullName: '',
     userName: '',
@@ -52,9 +40,7 @@ const UserPreferences: React.FC = () => {
     profilePic: null as File | null,
   });
 
-  const [preferences, setPreferences] = useState({
-    notifications: true
-  });
+  const [preferences, setPreferences] = useState({ notifications: true });
 
   useEffect(() => {
     loadUserData();
@@ -62,18 +48,14 @@ const UserPreferences: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
+    if (tabParam) setActiveTab(tabParam);
   }, [searchParams]);
 
   const loadUserData = async () => {
     try {
       const response = await getCurrentUser();
-      console.log('User data response:', response);
       const userData = response.data;
       setUser(userData);
-      
       setFormData({
         fullName: userData.fullName || '',
         userName: userData.userName || '',
@@ -82,43 +64,21 @@ const UserPreferences: React.FC = () => {
         address: userData.address || '',
         profilePic: null,
       });
-
-             setPreferences({
-         notifications: userData.preferences?.notifications ?? true
-       });
-    } catch (error) {
-      console.error('Error loading user data:', error);
+      setPreferences({ notifications: userData.preferences?.notifications ?? true });
+    } catch {
       toast.error('Failed to load user data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData(prev => ({ ...prev, profilePic: e.target.files![0] }));
-    }
-  };
-
-  const handlePreferenceChange = (field: string, value: any) => {
-    setPreferences(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleSave = async () => {
     setSaving(true);
     try {
       let updatedUser = null;
-      let profileChanged = false;
-      let preferencesChanged = false;
-      let changesMade = [];
+      const changesMade: string[] = [];
+      const updateData: Record<string, unknown> = {};
 
-      // Handle profile updates
-      const updateData: any = {};
-      
       if (formData.fullName.trim() !== (user?.fullName || '').trim()) {
         updateData.fullName = formData.fullName.trim();
         changesMade.push('Full Name');
@@ -141,331 +101,177 @@ const UserPreferences: React.FC = () => {
       }
 
       if (Object.keys(updateData).length > 0) {
-        profileChanged = true;
         const response = await updateUserDetails(updateData);
-        console.log('Profile update response:', response);
-        
-        if (response.data?.user) {
-          updatedUser = response.data.user;
-        }
+        if (response.data?.user) updatedUser = response.data.user;
       }
 
-      // Handle preference updates
-      const preferenceUpdates: any = {};
       if (preferences.notifications !== user?.preferences?.notifications) {
-        preferenceUpdates.notifications = preferences.notifications;
+        const response = await updateUserPreferences({ notifications: preferences.notifications });
+        if (response.data?.user) updatedUser = response.data.user;
         changesMade.push('Notification Settings');
       }
-      
-      
 
-      if (Object.keys(preferenceUpdates).length > 0) {
-        preferencesChanged = true;
-        const response = await updateUserPreferences(preferenceUpdates);
-        console.log('Preferences update response:', response);
-        
-        if (response.data?.user) {
-          updatedUser = response.data.user;
-        }
-      }
-
-      // Update local state with the latest user data
       if (updatedUser) {
         setUser(updatedUser);
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           fullName: updatedUser.fullName || prev.fullName,
           userName: updatedUser.userName || prev.userName,
           mobileNumber: updatedUser.mobileNumber || prev.mobileNumber,
           address: updatedUser.address || prev.address,
-          profilePic: null // Reset profile pic after upload
+          profilePic: null,
         }));
-                 setPreferences({
-           notifications: updatedUser.preferences?.notifications ?? true
-         });
+        setPreferences({ notifications: updatedUser.preferences?.notifications ?? true });
       }
 
-      // Show specific success message based on what was changed
       if (changesMade.length > 0) {
-        if (profileChanged && !preferencesChanged) {
-          toast.success('Profile updated successfully!');
-        } else if (preferencesChanged && !profileChanged) {
-          toast.success('Preferences updated successfully!');
-        } else {
-          toast.success('Profile & Preferences updated successfully!');
-        }
+        toast.success('Changes saved successfully!');
       } else {
-        toast('No changes detected. Everything is up to date!');
+        toast('No changes detected.');
       }
-    } catch (error) {
-      console.error('Error saving preferences:', error);
+    } catch {
       toast.error('Failed to save changes. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-16 px-4 py-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
-          <p className="text-white">Loading preferences...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton />;
+
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'preferences', label: 'Preferences', icon: Settings },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+  ];
 
   return (
-    <div className="min-h-screen pt-20 px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center space-x-4 mb-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white pt-10 mt-5">
-              <span className="text-teal-400">Preferences</span>
-            </h1>
-          </div>
-          <p className="text-gray-300 text-base sm:text-lg">Manage your account settings and preferences</p>
-        </motion.div>
+    <Page className="max-w-4xl">
+      <PageHeader
+        title="Preferences"
+        description="Manage your account settings and notification preferences."
+      />
 
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-8"
-        >
-          <div className="flex space-x-1 bg-white/10 backdrop-blur-lg rounded-xl p-1 border border-white/20">
-                         {[
-               { id: 'profile', label: 'Profile', icon: User },
-               { id: 'preferences', label: 'Preferences', icon: Settings },
-               { id: 'notifications', label: 'Notifications', icon: Bell }
-             ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  navigate(`/preferences?tab=${tab.id}`);
-                }}
-                className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-                  activeTab === tab.id
-                    ? 'bg-teal-400 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </motion.div>
+      <div className="mb-6 flex gap-1 rounded-lg border border-border bg-surface-muted p-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => {
+              setActiveTab(tab.id);
+              navigate(`/preferences?tab=${tab.id}`);
+            }}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+              activeTab === tab.id
+                ? 'bg-primary text-white'
+                : 'text-muted hover:text-foreground'
+            )}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
-        >
+      <Card>
+        <CardBody>
           {activeTab === 'profile' && (
             <div className="space-y-6">
-                              <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">Profile Information</h2>
-              
-              {/* Profile Picture */}
-              <div className="flex items-center space-x-6">
-                <div className="relative group">
-                  <div className="w-24 h-24 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 overflow-hidden">
+              <h2 className="type-heading">Profile information</h2>
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-primary-muted">
                     {user?.profilePic ? (
-                      <img
-                        src={user.profilePic}
-                        alt={user.fullName}
-                        className="w-24 h-24 rounded-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
+                      <img src={user.profilePic} alt={user.fullName} className="h-full w-full object-cover" />
                     ) : (
-                      <User className="w-12 h-12 text-white group-hover:scale-110 transition-transform duration-300" />
+                      <User className="h-10 w-10 text-primary" />
                     )}
                   </div>
-                  <label className="absolute bottom-0 right-0 bg-gradient-to-r from-teal-400 to-teal-500 p-2 rounded-full cursor-pointer hover:from-teal-500 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-110">
-                    <Camera className="w-4 h-4 text-white" />
+                  <label className="absolute bottom-0 right-0 cursor-pointer rounded-full bg-primary p-2 text-foreground hover:bg-primary-hover">
+                    <Camera className="h-4 w-4" />
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={handleFileChange}
+                      onChange={(e) =>
+                        e.target.files?.[0] &&
+                        setFormData((prev) => ({ ...prev, profilePic: e.target.files![0] }))
+                      }
                       className="hidden"
                     />
                   </label>
-                  <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-1">{user?.fullName}</h3>
-                  <p className="text-gray-300 mb-2">{user?.email}</p>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
-                    <span className="text-sm text-teal-400 font-medium">Active</span>
-                  </div>
+                  <h3 className="text-lg font-medium text-foreground">{user?.fullName}</h3>
+                  <p className="text-sm text-muted">{user?.email}</p>
                 </div>
               </div>
 
-              {/* Form Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    value={formData.fullName}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
-                  <input
-                    type="text"
-                    value={formData.userName}
-                    onChange={(e) => handleInputChange('userName', e.target.value)}
-                    className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                    placeholder="Enter username"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    disabled
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-gray-600 rounded-xl text-gray-400 cursor-not-allowed"
-                    placeholder="Email cannot be changed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Mobile Number</label>
-                  <input
-                    type="tel"
-                    value={formData.mobileNumber}
-                    onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
-                    className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                    placeholder="Enter mobile number"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
-                  <textarea
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors resize-none"
-                    placeholder="Enter your address"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'preferences' && (
-            <div className="space-y-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">General Preferences</h2>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
-                  <div className="flex items-center space-x-3">
-                    <Bell className="w-5 h-5 text-teal-400" />
-                    <div>
-                      <h3 className="font-medium text-white">Push Notifications</h3>
-                      <p className="text-sm text-gray-300">Receive notifications about bookings and updates</p>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={preferences.notifications}
-                      onChange={(e) => handlePreferenceChange('notifications', e.target.checked)}
-                      className="sr-only peer"
-                    />
-                                          <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
-                  </label>
-                </div>
-
-                
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">Notification Settings</h2>
-              
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {[
-                  { title: 'Booking Confirmations', desc: 'Get notified when your booking is confirmed' },
-                  { title: 'Booking Reminders', desc: 'Receive reminders before your scheduled game' },
-                  { title: 'Special Offers', desc: 'Get notified about special deals and promotions' },
-                  { title: 'Turf Updates', desc: 'Receive updates about turf availability and changes' }
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
-                    <div>
-                      <h3 className="font-medium text-white">{item.title}</h3>
-                      <p className="text-sm text-gray-300">{item.desc}</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        defaultChecked={true}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
-                    </label>
+                  { key: 'fullName', label: 'Full name', type: 'text' },
+                  { key: 'userName', label: 'Username', type: 'text' },
+                  { key: 'mobileNumber', label: 'Mobile number', type: 'tel' },
+                ].map((field) => (
+                  <div key={field.key}>
+                    <label className="mb-2 block type-label">{field.label}</label>
+                    <input
+                      type={field.type}
+                      value={formData[field.key as keyof typeof formData] as string}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      className={fieldClass}
+                    />
                   </div>
                 ))}
+                <div>
+                  <label className="mb-2 block type-label">Email</label>
+                  <input type="email" value={formData.email} disabled className={cn(fieldClass, 'cursor-not-allowed opacity-60')} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-2 block type-label">Address</label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+                    rows={3}
+                    className={cn(fieldClass, 'h-auto py-2')}
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          
+          {(activeTab === 'preferences' || activeTab === 'notifications') && (
+            <div className="space-y-4">
+              <h2 className="type-heading">
+                {activeTab === 'preferences' ? 'General preferences' : 'Notification settings'}
+              </h2>
+              <div className="flex items-center justify-between rounded-lg border border-border bg-surface-muted p-4">
+                <div className="flex items-center gap-3">
+                  <Bell className="h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="font-medium text-foreground">Push notifications</h3>
+                    <p className="text-sm text-muted">Receive updates about bookings and account activity.</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={preferences.notifications}
+                  onChange={(e) => setPreferences({ notifications: e.target.checked })}
+                  className="h-4 w-4 accent-primary"
+                />
+              </div>
+            </div>
+          )}
 
-          {/* Save Button */}
           <div className="mt-8 flex justify-end">
-            <motion.button
-              onClick={handleSave}
-              disabled={saving}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-teal-400 hover:bg-teal-500 disabled:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>
-                                 {saving 
-                   ? 'Saving...' 
-                   : activeTab === 'profile' 
-                     ? 'Save Profile Changes' 
-                     : activeTab === 'preferences' 
-                       ? 'Save Preferences' 
-                       : activeTab === 'notifications' 
-                         ? 'Save Notification Settings' 
-                         : 'Save Changes'
-                 }
-              </span>
-            </motion.button>
+            <Button type="button" onClick={handleSave} loading={saving}>
+              <Save className="h-4 w-4" />
+              Save changes
+            </Button>
           </div>
-        </motion.div>
-      </div>
-    </div>
+        </CardBody>
+      </Card>
+    </Page>
   );
 };
 
-export default UserPreferences; 
+export default UserPreferences;

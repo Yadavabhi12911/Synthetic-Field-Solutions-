@@ -121,15 +121,22 @@ const loginUser = asyncHandler(async (req, res) => {
 
     // }
 
+    const normalizedUserName = userName?.trim().toLowerCase()
+    const normalizedEmail = email?.trim().toLowerCase()
+    const authFilters = []
+
+    if (normalizedUserName) authFilters.push({ userName: normalizedUserName })
+    if (normalizedEmail) authFilters.push({ email: normalizedEmail })
+
     const user = await User.findOne({
-        $or: [{ userName }, { email }]
+        $or: authFilters
     })
 
 
 
 
     if (!user) {
-        throw new ApiError(404, "User does not exist")
+        throw new ApiError(401, "Invalid user credentials")
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password)

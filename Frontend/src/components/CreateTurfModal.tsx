@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { X, Upload, MapPin, DollarSign, Clock, Image } from 'lucide-react';
+import { Image } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createTurf } from '../api';
+import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { cn } from '../lib/cn';
 
 interface CreateTurfModalProps {
   onClose: () => void;
@@ -14,13 +17,18 @@ interface CreateTurfModalProps {
     pincode: string;
     contactNumber: string;
     turfTiming?: string[];
-    photos?: { photos: string }[];
+    photos?: { photos: string; public_id?: string }[];
   };
   onSubmit?: (formData: FormData, turfId?: string) => Promise<void>;
-  mode?: "create" | "edit";
+  mode?: 'create' | 'edit';
 }
 
-const CreateTurfModal: React.FC<CreateTurfModalProps> = ({ onClose, initialData, onSubmit, mode = "create" }) => {
+const CreateTurfModal: React.FC<CreateTurfModalProps> = ({
+  onClose,
+  initialData,
+  onSubmit,
+  mode = 'create',
+}) => {
   const [formData, setFormData] = useState({
     description: initialData?.description || '',
     price: initialData?.price || '',
@@ -31,25 +39,23 @@ const CreateTurfModal: React.FC<CreateTurfModalProps> = ({ onClose, initialData,
   const [isLoading, setIsLoading] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>(initialData?.turfTiming || []);
-  const [existingPhotos, setExistingPhotos] = useState<{ photos: string, public_id: string }[]>(
+  const [existingPhotos, setExistingPhotos] = useState<{ photos: string; public_id: string }[]>(
     (initialData?.photos || []).map((p, idx) => ({
       photos: p.photos,
-      public_id: p.public_id || `noid-${idx}`
+      public_id: p.public_id || `noid-${idx}`,
     }))
   );
   const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setPhotos(Array.from(e.target.files).slice(0, 5)); // Max 5 photos
+      setPhotos(Array.from(e.target.files).slice(0, 5));
     }
   };
 
   const handleSlotChange = (slot: string) => {
-    setSelectedSlots(prev =>
-      prev.includes(slot)
-        ? prev.filter(s => s !== slot)
-        : [...prev, slot]
+    setSelectedSlots((prev) =>
+      prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]
     );
   };
 
@@ -63,11 +69,11 @@ const CreateTurfModal: React.FC<CreateTurfModalProps> = ({ onClose, initialData,
       form.append('address', formData.address);
       form.append('pincode', formData.pincode);
       form.append('ContactNumber', formData.contactNumber);
-      photos.forEach(photo => form.append('turfPhotos', photo));
-      selectedSlots.forEach(slot => form.append('turfTiming', slot));
+      photos.forEach((photo) => form.append('turfPhotos', photo));
+      selectedSlots.forEach((slot) => form.append('turfTiming', slot));
       if (mode === 'edit') {
-        existingPhotos.forEach(obj => form.append('existingPhotos', JSON.stringify(obj)));
-        removedPhotos.forEach(id => form.append('removedPhotos', id));
+        existingPhotos.forEach((obj) => form.append('existingPhotos', JSON.stringify(obj)));
+        removedPhotos.forEach((id) => form.append('removedPhotos', id));
       }
       if (onSubmit) {
         await onSubmit(form, initialData?._id);
@@ -81,7 +87,7 @@ const CreateTurfModal: React.FC<CreateTurfModalProps> = ({ onClose, initialData,
       setExistingPhotos([]);
       setRemovedPhotos([]);
       onClose();
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} turf. Please try again.`);
     } finally {
       setIsLoading(false);
@@ -89,213 +95,183 @@ const CreateTurfModal: React.FC<CreateTurfModalProps> = ({ onClose, initialData,
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      title={mode === 'edit' ? 'Edit field' : 'Create new field'}
+      size="xl"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="create-turf-form" loading={isLoading}>
+            {mode === 'edit' ? 'Update field' : 'Create field'}
+          </Button>
+        </div>
+      }
     >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">{mode === 'edit' ? 'Edit Turf' : 'Create New Turf'}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 bg-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/20 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      <form id="create-turf-form" onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label htmlFor="description" className="mb-2 block type-label">
+            Description
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            required
+            rows={3}
+            className="w-full resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+            placeholder="Describe your field (facilities, size, surface type, etc.)"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              required
-              rows={3}
-                                  className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors resize-none"
-              placeholder="Describe your turf (facilities, size, surface type, etc.)"
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input
+            label="Price per hour (₹)"
+            type="number"
+            name="price"
+            value={formData.price}
+            onChange={handleChange}
+            required
+            placeholder="1000"
+          />
+          <Input
+            label="Contact number"
+            type="tel"
+            name="contactNumber"
+            value={formData.contactNumber}
+            onChange={handleChange}
+            required
+            placeholder="Enter contact number"
+          />
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Price per Hour (₹)
-              </label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  required
-                                      className="w-full pl-10 pr-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                  placeholder="1000"
-                />
-              </div>
-            </div>
+        <div>
+          <label htmlFor="address" className="mb-2 block type-label">
+            Address
+          </label>
+          <textarea
+            id="address"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            required
+            rows={2}
+            className="w-full resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+            placeholder="Enter complete address"
+          />
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Contact Number
-              </label>
-              <input
-                type="tel"
-                name="contactNumber"
-                value={formData.contactNumber}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-                placeholder="Enter contact number"
-              />
-            </div>
-          </div>
+        <Input
+          label="Pincode"
+          type="text"
+          name="pincode"
+          value={formData.pincode}
+          onChange={handleChange}
+          required
+          placeholder="Enter pincode"
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Address
-            </label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                required
-                rows={2}
-                className="w-full pl-10 pr-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors resize-none"
-                placeholder="Enter complete address"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Pincode
-            </label>
+        <div>
+          <p className="mb-2 type-label">Field photos</p>
+          <div className="rounded-md border border-dashed border-border p-6 text-center hover:border-primary">
+            <Image className="mx-auto mb-4 h-12 w-12 text-muted" />
+            <p className="mb-2 text-sm text-muted">Click to upload photos</p>
+            <p className="text-xs text-muted">PNG, JPG up to 5MB (max 5 photos)</p>
             <input
-              type="text"
-              name="pincode"
-              value={formData.pincode}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-3 bg-zinc-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-colors"
-              placeholder="Enter pincode"
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              id="photos"
+              onChange={handleFileChange}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Turf Photos
+            <label htmlFor="photos">
+              <span className="mt-4 inline-block cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover">
+                Choose files
+              </span>
             </label>
-            <div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-teal-400 transition-colors">
-              <Image className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-300 mb-2">Click to upload photos</p>
-              <p className="text-gray-500 text-sm">PNG, JPG up to 5MB (Max 5 photos)</p>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                id="photos"
-                onChange={handleFileChange}
-              />
-              <label
-                htmlFor="photos"
-                className="mt-4 inline-block bg-teal-400 hover:bg-teal-500 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors"
-              >
-                Choose Files
-              </label>
-            </div>
-            {photos.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {photos.map((file, idx) => (
-                  <span key={idx} className="text-xs text-teal-300 bg-teal-900/30 px-2 py-1 rounded">
-                    {file.name}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-4">
-              Available Time Slots
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Array.from({ length: 24 }, (_, i) => {
-                const hour = i.toString().padStart(2, '0');
-                const slot = `${hour}:00`;
-                return (
-                  <label key={i} className="flex items-center space-x-2 p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-600 text-teal-400 focus:ring-teal-400"
-                      checked={selectedSlots.includes(slot)}
-                      onChange={() => handleSlotChange(slot)}
-                    />
-                    <span className="text-white text-sm">{slot}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {mode === 'edit' && existingPhotos.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {existingPhotos.map((img, idx) => (
-                <div key={img.public_id} className="relative group">
-                  <img src={img.photos} alt="Existing Turf" className="w-16 h-16 object-cover rounded border" />
-                  <button type="button" onClick={() => {
-                    setRemovedPhotos(rm => [...rm, img.public_id || `noid-${idx}`]);
-                    setExistingPhotos(photos => photos.filter((_, i) => i !== idx));
-                  }} className="absolute top-0 right-0 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+          {photos.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {photos.map((file, idx) => (
+                <span
+                  key={idx}
+                  className="rounded-md bg-primary-muted px-2 py-1 text-xs text-primary"
+                >
+                  {file.name}
+                </span>
               ))}
             </div>
           )}
+        </div>
 
-          <div className="flex justify-end space-x-4 pt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 border border-gray-600 text-gray-300 rounded-xl hover:bg-white/10 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-teal-400 hover:bg-teal-500 text-white font-semibold text-lg transition-colors disabled:opacity-60"
-              disabled={isLoading}
-            >
-              {isLoading ? (mode === 'edit' ? 'Updating...' : 'Creating...') : (mode === 'edit' ? 'Update Turf' : 'Create Turf')}
-            </button>
+        <div>
+          <p className="mb-4 type-label">Available time slots</p>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {Array.from({ length: 24 }, (_, i) => {
+              const hour = i.toString().padStart(2, '0');
+              const slot = `${hour}:00`;
+              const checked = selectedSlots.includes(slot);
+              return (
+                <label
+                  key={i}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm transition-colors',
+                    checked
+                      ? 'border-primary bg-primary-muted text-primary'
+                      : 'border-border bg-surface-muted text-foreground hover:border-primary'
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded border-border text-primary focus:ring-primary"
+                    checked={checked}
+                    onChange={() => handleSlotChange(slot)}
+                  />
+                  <span>{slot}</span>
+                </label>
+              );
+            })}
           </div>
-        </form>
-      </motion.div>
-    </motion.div>
+        </div>
+
+        {mode === 'edit' && existingPhotos.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {existingPhotos.map((img, idx) => (
+              <div key={img.public_id} className="group relative">
+                <img
+                  src={img.photos}
+                  alt="Existing field"
+                  className="h-16 w-16 rounded border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRemovedPhotos((rm) => [...rm, img.public_id || `noid-${idx}`]);
+                    setExistingPhotos((photos) => photos.filter((_, i) => i !== idx));
+                  }}
+                  className="absolute right-0 top-0 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  aria-label="Remove photo"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </form>
+    </Modal>
   );
 };
 
