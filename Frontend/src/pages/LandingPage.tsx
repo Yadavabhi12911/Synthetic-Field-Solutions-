@@ -124,6 +124,7 @@ const LandingPage: React.FC = () => {
             </h2>
             <p className="type-body type-measure mt-3">Find a field, hold a slot, or run the venue from one place.</p>
           </Reveal>
+          
 
           <div className="mt-12 grid gap-5 lg:grid-cols-3">
             <Reveal className="lg:col-span-2">
