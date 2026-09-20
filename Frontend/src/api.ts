@@ -6,9 +6,12 @@ const handleTokenExpiration = () => {
   window.location.href = '/admin/login';
 };
 
-// api.ts
-// const API_BASE = 'https://synthetic-field-solutions.onrender.com/api/v1';
-const API_BASE = 'http://localhost:8000/api/v1';
+function resolveApiBase() {
+  const raw = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+  return raw.endsWith('/api/v1') ? raw : `${raw}/api/v1`;
+}
+
+export const API_BASE = resolveApiBase();
 
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {

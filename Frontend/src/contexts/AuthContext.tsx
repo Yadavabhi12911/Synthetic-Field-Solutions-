@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE } from '../api';
 
 interface User {
   _id: string;
@@ -86,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const endpoint = type === 'admin' ? '/admins/getcurrent-admin' : '/users/getcurrent-user';
       const method = type === 'admin' ? 'POST' : 'GET';
-      const response = await fetch(`http://localhost:8000/api/v1${endpoint}`, {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
