@@ -10,8 +10,6 @@ import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { PageSkeleton } from '../components/ui/Skeleton';
 import { cn } from '../lib/cn';
-import { PitchStage } from '../components/landing/PitchStage';
-import { slotsFromTimings } from '../components/landing/pitchSlots';
 
 interface Turf {
   _id: string;
@@ -367,17 +365,7 @@ const TurfDetails: React.FC = () => {
 
           <div className="lg:col-span-1">
             <div className="sticky top-[calc(var(--shell-header-height)+1rem)] space-y-4">
-              <PitchStage
-                compact
-                slots={slotsFromTimings(turf.turfTiming, turf.price)}
-                selectedSlotId={selectedSlot || undefined}
-                onSelectSlot={(id) => {
-                  const slot = turf.turfTiming.find((item) => item.time === id);
-                  if (slot?.status) setSelectedSlot(id);
-                }}
-                title={turf.owner?.companyName || 'This field'}
-                subtitle="Tap a glowing hour to hold it"
-              />
+              <TodayHoursCard slots={turf.turfTiming || []} price={turf.price} />
             <Card>
               <CardBody>
               <SectionTitle>Book your slot</SectionTitle>
@@ -452,5 +440,42 @@ const TurfDetails: React.FC = () => {
     </Page>
   );
 };
+
+function TodayHoursCard({
+  slots,
+  price,
+}: {
+  slots: Array<{ time: string; status: boolean }>;
+  price: number;
+}) {
+  const openSlots = slots.filter((slot) => slot.status);
+  const nextOpen = openSlots[0];
+  const firstHour = slots[0]?.time;
+  const lastHour = slots[slots.length - 1]?.time;
+
+  return (
+    <Card>
+      <CardBody>
+        <h2 className="type-heading">Today's hours</h2>
+        <p className="type-body-sm mt-1">
+          {firstHour && lastHour ? `${firstHour} – ${lastHour}` : 'No hours listed yet'}
+        </p>
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
+          <div>
+            <dt className="type-meta">Next open</dt>
+            <dd className="type-heading mt-1 text-primary">{nextOpen ? nextOpen.time : 'None'}</dd>
+          </div>
+          <div>
+            <dt className="type-meta">Open today</dt>
+            <dd className="type-heading mt-1">
+              {slots.length ? `${openSlots.length}/${slots.length}` : '—'}
+            </dd>
+          </div>
+        </dl>
+        <p className="type-body-sm mt-5">₹{price} per hour</p>
+      </CardBody>
+    </Card>
+  );
+}
 
 export default TurfDetails;

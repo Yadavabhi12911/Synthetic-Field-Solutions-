@@ -10,10 +10,8 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { PageSkeleton } from '../components/ui/Skeleton';
 import { BookingDetailsModal } from '../components/BookingDetailsModal';
-import { PitchStage } from '../components/landing/PitchStage';
 import { TiltSurface } from '../components/landing/TiltSurface';
 import { StatCard } from '../components/ui/StatCard';
-import { slotsFromTimings } from '../components/landing/pitchSlots';
 
 interface Booking {
   _id: string;
@@ -120,8 +118,6 @@ const UserDashboard: React.FC = () => {
   }
 
   const bookingStats = countBookingsByStatus(recentBookings);
-  const featuredTurf = recommendedTurfs[0];
-  const dashboardSlots = slotsFromTimings(featuredTurf?.turfTiming, featuredTurf?.price);
   const dashboardStats = [
     { label: 'Total bookings', value: bookingStats.total, icon: Calendar },
     { label: 'Upcoming', value: bookingStats.upcoming, icon: Clock },
@@ -136,22 +132,10 @@ const UserDashboard: React.FC = () => {
         description="Ready to book your next game?"
       />
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-stretch">
-        <PitchStage
-          compact
-          slots={dashboardSlots}
-          title={featuredTurf?.owner?.companyName || 'Tonight on the pitch'}
-          subtitle={
-            featuredTurf
-              ? `${featuredTurf.address} · live slots`
-              : 'Pick an hour. The ball follows.'
-          }
-        />
-        <div className="grid grid-cols-2 gap-4">
-          {dashboardStats.map((stat) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
-          ))}
-        </div>
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {dashboardStats.map((stat) => (
+          <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
+        ))}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
