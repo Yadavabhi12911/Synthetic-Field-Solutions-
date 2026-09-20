@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, BarChart3, Users, Calendar, MapPin, Edit, Trash2, Star, X, Eye, Clock } from 'lucide-react';
+import { Plus, Settings, BarChart3, Users, Calendar, MapPin, Edit, Trash2, Star, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import CreateTurfModal from '../components/CreateTurfModal';
 import { getAdminTurfs, getAdminBookingHistory, toggleTurfSlotStatus, deleteTurf, updateTurf } from '../api';
@@ -14,9 +14,7 @@ import { PageSkeleton } from '../components/ui/Skeleton';
 import { cn } from '../lib/cn';
 import { BookingDetailsModal } from '../components/BookingDetailsModal';
 import { Modal } from '../components/ui/Modal';
-import { PitchStage } from '../components/landing/PitchStage';
 import { StatCard } from '../components/ui/StatCard';
-import { slotsFromTimings } from '../components/landing/pitchSlots';
 
 interface Turf {
   _id: string;
@@ -216,18 +214,10 @@ const AdminDashboard: React.FC = () => {
         }
       />
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-stretch">
-        <PitchStage
-          compact
-          slots={slotsFromTimings(turfs[0]?.turfTiming, turfs[0]?.price)}
-          title={turfs[0]?.description || 'Your pitch'}
-          subtitle={turfs[0]?.address || 'Add a field to see live slots here'}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          {dashboardStats.map((stat) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
-          ))}
-        </div>
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {dashboardStats.map((stat) => (
+          <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
+        ))}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -272,7 +262,7 @@ const AdminDashboard: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex items-start justify-between gap-2">
-                          <h3 className="type-heading">{turf.description}</h3>
+                          <h3 className="type-heading line-clamp-2">{turf.description}</h3>
                           <div className="flex gap-1">
                             <Button type="button" variant="ghost" size="sm" onClick={() => handleEditTurf(turf._id)}>
                               <Edit className="h-4 w-4" />
@@ -295,7 +285,9 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         )}
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="type-numeric text-primary">{turf.price}</span>
+                          <span className="type-numeric text-primary">
+                            {String(turf.price).startsWith('₹') ? turf.price : `₹${turf.price}`}
+                          </span>
                           <div className="flex flex-wrap gap-1.5">
                             {turf.turfTiming?.length ? (
                               turf.turfTiming

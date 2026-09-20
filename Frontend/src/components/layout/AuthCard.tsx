@@ -10,6 +10,8 @@ interface AuthCardProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  wide?: boolean;
+  tilt?: boolean;
 }
 
 export function AuthCard({
@@ -19,29 +21,45 @@ export function AuthCard({
   children,
   footer,
   className,
+  wide = false,
+  tilt = true,
 }: AuthCardProps) {
+  const body = (
+    <Card
+      className={cn(
+        tilt && 'border-0 bg-transparent shadow-none hover:border-transparent',
+        !tilt && 'shadow-modal hover:border-white/[0.08]'
+      )}
+    >
+      <CardBody className="p-6 text-left sm:p-8">
+        <div className="mb-8">
+          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-primary-muted text-primary">
+            {icon}
+          </div>
+          <h1 className="type-title">{title}</h1>
+          <p className="type-body type-measure mt-2">{description}</p>
+        </div>
+        {children}
+        {footer && <div className="type-body-sm mt-6">{footer}</div>}
+      </CardBody>
+    </Card>
+  );
+
   return (
     <div
       className={cn(
-        'relative z-10 flex min-h-[calc(100vh-var(--shell-header-height))] items-center justify-center px-4 py-8',
+        'relative z-10 flex min-h-[calc(100vh-var(--shell-header-height))] justify-center px-4 py-8',
+        wide ? 'items-start' : 'items-center',
         className
       )}
     >
-      <TiltSurface className="w-full max-w-md" innerClassName="shadow-modal">
-        <Card className="border-0 bg-transparent shadow-none hover:border-transparent">
-          <CardBody className="p-8 text-left">
-            <div className="mb-8">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-primary-muted text-primary">
-                {icon}
-              </div>
-              <h1 className="type-title">{title}</h1>
-              <p className="type-body type-measure mt-2">{description}</p>
-            </div>
-            {children}
-            {footer && <div className="type-body-sm mt-6">{footer}</div>}
-          </CardBody>
-        </Card>
-      </TiltSurface>
+      {tilt ? (
+        <TiltSurface className={cn('w-full', wide ? 'max-w-lg' : 'max-w-md')} innerClassName="shadow-modal">
+          {body}
+        </TiltSurface>
+      ) : (
+        <div className={cn('w-full', wide ? 'max-w-lg' : 'max-w-md')}>{body}</div>
+      )}
     </div>
   );
 }

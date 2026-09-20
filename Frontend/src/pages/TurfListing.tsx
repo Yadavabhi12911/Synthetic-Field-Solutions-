@@ -161,14 +161,16 @@ const TurfListing: React.FC = () => {
         overlayClassName="bg-gradient-to-r from-black/55 via-black/20 to-transparent"
       />
 
-      <div className="mb-6 flex flex-col gap-4 md:flex-row">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start">
+        <div className="min-w-0 flex-1">
           <Input
+            name="field-search"
+            type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by location, name, or operator..."
-            className="pl-9"
+            icon={<Search className="h-4 w-4" />}
+            autoComplete="off"
             hint="Sign up for saved preferences and faster booking."
           />
         </div>
@@ -177,7 +179,7 @@ const TurfListing: React.FC = () => {
           type="button"
           variant={hasActiveFilters ? 'primary' : 'secondary'}
           onClick={() => setFilterOpen(!filterOpen)}
-          className="shrink-0"
+          className="h-11 shrink-0"
         >
           <Filter className="h-4 w-4" />
           Filters

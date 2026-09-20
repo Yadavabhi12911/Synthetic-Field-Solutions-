@@ -1,11 +1,43 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, Mail, Phone, UserCheck, MapPin, Building, Shield } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import {
+  Building,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  MapPin,
+  Phone,
+  Shield,
+  User,
+  UserCheck,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
+import { registerAdmin, registerUser } from '../api';
+import { AuthCard } from '../components/layout/AuthCard';
 import { Button } from '../components/ui/Button';
-import { registerUser, registerAdmin } from '../api';
+import { Input, RequiredMark } from '../components/ui/Input';
 import { cn } from '../lib/cn';
+import {
+  firstRegisterError,
+  validateRegisterForm,
+  type RegisterErrors,
+} from '../lib/registerValidation';
+
+function readApiError(error: unknown) {
+  if (!(error instanceof Error) || !error.message) {
+    return 'Registration failed. Please try again.';
+  }
+  try {
+    const parsed = JSON.parse(error.message) as { message?: string };
+    if (parsed.message) return parsed.message;
+  } catch {
+    const cleaned = error.message.replace(/<[^>]+>/g, '').trim();
+    if (cleaned && cleaned.length < 180) return cleaned;
+  }
+  return 'Registration failed. Please try again.';
+}
 
 const UserRegister: React.FC = () => {
   const [userType, setUserType] = useState<'user' | 'turfOwner'>('user');
@@ -17,34 +49,59 @@ const UserRegister: React.FC = () => {
     address: '',
     password: '',
     confirmPassword: '',
-    companyName: '', // For turf owners
+    companyName: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [profilePic, setProfilePic] = useState<File | null>(null);
-  
+  const [errors, setErrors] = useState<RegisterErrors>({});
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
+  const isPlayer = userType === 'user';
+  const passwordMismatch =
+    formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
 
-    if (userType === 'turfOwner' && !profilePic) {
-      toast.error('Profile picture is required for turf owners');
+  const description = useMemo(
+    () =>
+      isPlayer
+        ? 'Set up a player account to browse fields and hold a slot.'
+        : 'Set up an operator account to list your venue and manage bookings.',
+    [isPlayer]
+  );
+
+  const currentErrors = (): RegisterErrors =>
+    validateRegisterForm(formData, { operator: !isPlayer, photo: profilePic });
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name as keyof RegisterErrors]) {
+      const next = validateRegisterForm(
+        { ...formData, [name]: value },
+        { operator: !isPlayer, photo: profilePic }
+      );
+      setErrors((prev) => ({ ...prev, [name]: next[name as keyof RegisterErrors] }));
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const nextErrors = currentErrors();
+    setErrors(nextErrors);
+
+    const first = firstRegisterError(nextErrors);
+    if (first) {
+      const focusId = first === 'photo' ? 'profilePic' : first;
+      document.getElementById(focusId)?.focus();
       return;
     }
 
     setIsLoading(true);
 
     try {
-      if (userType === 'user') {
-        // Register as regular user
+      if (isPlayer) {
         const data = await registerUser({
           userName: formData.userName,
           email: formData.email,
@@ -54,257 +111,293 @@ const UserRegister: React.FC = () => {
           address: formData.address,
           profilePic: profilePic || undefined,
         });
-        login(data.user, 'user', data.token);
+        const payload = data.data ?? data;
+        login(payload.user, 'user', payload.token);
         toast.success('Registration successful!');
         navigate('/dashboard');
-      } else {
-        // Register as turf owner
-        const adminFormData = new FormData();
-        adminFormData.append('userName', formData.userName);
-        adminFormData.append('email', formData.email);
-        adminFormData.append('companyName', formData.companyName);
-        adminFormData.append('mobileNumber', formData.mobileNumber);
-        adminFormData.append('password', formData.password);
-        adminFormData.append('adminPic', profilePic!);
-        
-        const data = await registerAdmin(adminFormData);
-        login(data.data.user, 'admin', data.data.accessToken);
-        toast.success('Turf Owner registration successful!');
-        navigate('/admin/dashboard');
+        return;
       }
+
+      const adminFormData = new FormData();
+      adminFormData.append('userName', formData.userName);
+      adminFormData.append('email', formData.email);
+      adminFormData.append('companyName', formData.companyName);
+      adminFormData.append('mobileNumber', formData.mobileNumber);
+      adminFormData.append('password', formData.password);
+      adminFormData.append('adminPic', profilePic!);
+
+      const data = await registerAdmin(adminFormData);
+      login(data.data.user, 'admin', data.data.accessToken);
+      toast.success('Operator account created');
+      navigate('/admin/dashboard');
     } catch (error) {
-      toast.error('Registration failed. Please try again.');
+      toast.error(readApiError(error));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
-    <div className="flex min-h-[calc(100vh-var(--shell-header-height))] items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface shadow-modal">
-        <div className="p-8">
-          <div className="mb-8 text-left">
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-primary-muted text-primary">
-              {userType === 'user' ? <UserCheck className="h-7 w-7" /> : <Shield className="h-7 w-7" />}
-            </div>
-            <h1 className="type-title">Create account</h1>
-            <p className="type-body mt-2">Join to book fields or list your venue.</p>
-          </div>
-
-          <div className="mb-6">
-            <p className="type-label mb-3">I want to sign up as</p>
-            <div className="flex gap-2 rounded-md border border-border bg-surface-muted p-1">
-              <button
-                type="button"
-                onClick={() => setUserType('user')}
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-2 rounded-md py-3 px-4 type-label transition-colors',
-                  userType === 'user'
-                    ? 'bg-primary text-white'
-                    : 'text-muted hover:bg-surface hover:text-foreground'
-                )}
-              >
-                <User className="h-4 w-4" />
-                <span>Player</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setUserType('turfOwner')}
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-2 rounded-md py-3 px-4 type-label transition-colors',
-                  userType === 'turfOwner'
-                    ? 'bg-primary text-white'
-                    : 'text-muted hover:bg-surface hover:text-foreground'
-                )}
-              >
-                <Shield className="h-4 w-4" />
-                <span>Field operator</span>
-              </button>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="type-label mb-2 block">
-                Username
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type="text"
-                  name="userName"
-                  value={formData.userName}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                  placeholder="Choose a username"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="type-label mb-2 block">
-                {userType === 'user' ? 'Full name' : 'Company name'}
-              </label>
-              <div className="relative">
-                {userType === 'user' ? (
-                  <UserCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                ) : (
-                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                )}
-                <input
-                  type="text"
-                  name={userType === 'user' ? 'fullName' : 'companyName'}
-                  value={userType === 'user' ? formData.fullName : formData.companyName}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                  placeholder={userType === 'user' ? 'Enter your full name' : 'Enter company name'}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="type-label mb-2 block">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                  placeholder="Enter your email"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="type-label mb-2 block">
-                Mobile number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type="tel"
-                  name="mobileNumber"
-                  value={formData.mobileNumber}
-                  onChange={handleChange}
-                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                  placeholder="Enter your mobile number"
-                />
-              </div>
-            </div>
-
-            {userType === 'user' && (
-              <div>
-                <label className="type-label mb-2 block">
-                  Address
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                    placeholder="Enter your address"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="type-label mb-2 block">
-                {userType === 'user' ? 'Profile Picture (optional)' : 'Profile Picture (required)'}
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                required={userType === 'turfOwner'}
-                onChange={e => setProfilePic(e.target.files?.[0] || null)}
-                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
-              />
-            </div>
-
-            <div>
-              <label className="type-label mb-2 block">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border border-border bg-surface py-2 pl-9 pr-10 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="type-label mb-2 block">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted" />
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border border-border bg-surface py-2 pl-9 pr-10 text-sm text-foreground placeholder:text-muted focus:border-primary"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-foreground transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" loading={isLoading}>
-              {userType === 'user' ? 'Create player account' : 'Create operator account'}
-            </Button>
-          </form>
-
-          <div className="type-body-sm mt-6 text-left">
-            <p>
-              Already have an account?{' '}
-              <Link to="/login" className="text-primary hover:underline">
-                Sign in
-              </Link>
-            </p>
+    <AuthCard
+      wide
+      tilt={false}
+      title="Create account"
+      description={description}
+      icon={isPlayer ? <UserCheck className="h-7 w-7" /> : <Shield className="h-7 w-7" />}
+      footer={
+        <p>
+          Already have an account?{' '}
+          <Link to={isPlayer ? '/login' : '/admin/login'} className="text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        <div className="space-y-2">
+          <p id="account-type-label" className="type-label">
+            Account type
+          </p>
+          <div
+            role="radiogroup"
+            aria-labelledby="account-type-label"
+            className="grid gap-2 sm:grid-cols-2"
+          >
+            <RoleCard
+              selected={isPlayer}
+              title="Player"
+              copy="Book turfs by the hour."
+              icon={<User className="h-4 w-4" />}
+              onSelect={() => {
+                setUserType('user');
+                setErrors({});
+                setProfilePic(null);
+              }}
+            />
+            <RoleCard
+              selected={!isPlayer}
+              title="Operator"
+              copy="List and run your venue."
+              icon={<Shield className="h-4 w-4" />}
+              onSelect={() => {
+                setUserType('turfOwner');
+                setErrors({});
+                setProfilePic(null);
+              }}
+            />
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="space-y-4">
+          <Input
+            label="Username"
+            name="userName"
+            value={formData.userName}
+            onChange={handleChange}
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="yourname"
+            icon={<User className="h-4 w-4" />}
+            required
+            error={errors.userName}
+          />
+          <Input
+            label={isPlayer ? 'Full name' : 'Venue name'}
+            name={isPlayer ? 'fullName' : 'companyName'}
+            value={isPlayer ? formData.fullName : formData.companyName}
+            onChange={handleChange}
+            autoComplete={isPlayer ? 'name' : 'organization'}
+            placeholder={isPlayer ? 'Rahul sharma' : 'Northside Turf'}
+            icon={
+              isPlayer ? <UserCheck className="h-4 w-4" /> : <Building className="h-4 w-4" />
+            }
+            required
+            error={isPlayer ? errors.fullName : errors.companyName}
+          />
+          <Input
+            label="Email"
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            autoComplete="email"
+            inputMode="email"
+            placeholder="you@email.com"
+            icon={<Mail className="h-4 w-4" />}
+            required
+            error={errors.email}
+          />
+          <Input
+            label="Mobile number"
+            type="tel"
+            name="mobileNumber"
+            value={formData.mobileNumber}
+            onChange={handleChange}
+            autoComplete="tel"
+            inputMode="numeric"
+            placeholder="9876543210"
+            icon={<Phone className="h-4 w-4" />}
+            required={!isPlayer}
+            error={errors.mobileNumber}
+          />
+          {isPlayer && (
+            <Input
+              label="Address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              autoComplete="street-address"
+              placeholder="Area, city"
+              icon={<MapPin className="h-4 w-4" />}
+            />
+          )}
+          <Input
+            label="Password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.password}
+            onChange={handleChange}
+            autoComplete="new-password"
+            placeholder="Create a password"
+            icon={<Lock className="h-4 w-4" />}
+            required
+            error={errors.password}
+            hint={errors.password ? undefined : 'At least 8 characters, with a letter and a number'}
+            trailing={
+              <VisibilityToggle
+                visible={showPassword}
+                label="password"
+                onToggle={() => setShowPassword((open) => !open)}
+              />
+            }
+          />
+          <Input
+            label="Confirm password"
+            name="confirmPassword"
+            type={showConfirmPassword ? 'text' : 'password'}
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            autoComplete="new-password"
+            placeholder="Repeat password"
+            icon={<Lock className="h-4 w-4" />}
+            required
+            error={errors.confirmPassword || (passwordMismatch ? 'Passwords do not match' : undefined)}
+            trailing={
+              <VisibilityToggle
+                visible={showConfirmPassword}
+                label="confirm password"
+                onToggle={() => setShowConfirmPassword((open) => !open)}
+              />
+            }
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-2">
+          <label htmlFor="profilePic" className="type-label">
+            {isPlayer ? 'Profile photo' : 'Venue photo'}
+            {isPlayer ? (
+              <span className="ml-1 font-normal text-muted">optional</span>
+            ) : (
+              <RequiredMark />
+            )}
+          </label>
+          <label
+            className={cn(
+              'flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-dashed bg-surface px-3 py-3 transition-colors hover:border-primary',
+              errors.photo ? 'border-danger' : 'border-border'
+            )}
+          >
+            <span className="shrink-0 rounded-md bg-surface-muted px-3 py-1.5 type-label">
+              Choose file
+            </span>
+            <span className="min-w-0 truncate type-body-sm">
+              {profilePic ? profilePic.name : 'PNG or JPG'}
+            </span>
+            <input
+              id="profilePic"
+              type="file"
+              accept="image/*"
+              required={!isPlayer}
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                setProfilePic(file);
+                if (errors.photo) {
+                  const next = validateRegisterForm(formData, {
+                    operator: !isPlayer,
+                    photo: file,
+                  });
+                  setErrors((prev) => ({ ...prev, photo: next.photo }));
+                }
+              }}
+            />
+          </label>
+          {errors.photo ? <p className="type-body-sm text-danger">{errors.photo}</p> : null}
+        </div>
+
+        <Button type="submit" className="w-full" loading={isLoading}>
+          {isPlayer ? 'Create player account' : 'Create operator account'}
+        </Button>
+      </form>
+    </AuthCard>
   );
 };
+
+function RoleCard({
+  selected,
+  title,
+  copy,
+  icon,
+  onSelect,
+}: {
+  selected: boolean;
+  title: string;
+  copy: string;
+  icon: React.ReactNode;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={cn(
+        'rounded-md border px-4 py-3 text-left transition-colors',
+        selected
+          ? 'border-primary bg-primary-muted text-foreground'
+          : 'border-border bg-surface text-muted hover:border-primary/40 hover:text-foreground'
+      )}
+    >
+      <span className="flex items-center gap-2 type-label text-foreground">
+        {icon}
+        {title}
+      </span>
+      <span className="mt-1 block type-body-sm">{copy}</span>
+    </button>
+  );
+}
+
+function VisibilityToggle({
+  visible,
+  label,
+  onToggle,
+}: {
+  visible: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:text-foreground"
+      aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+    >
+      {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  );
+}
 
 export default UserRegister;

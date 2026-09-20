@@ -7,7 +7,6 @@ import { loginAdmin } from '../api';
 import { AuthCard } from '../components/layout/AuthCard';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { cn } from '../lib/cn';
 
 const AdminLogin: React.FC = () => {
   const [formData, setFormData] = useState({ userName: '', password: '' });
@@ -59,37 +58,32 @@ const AdminLogin: React.FC = () => {
           name="userName"
           value={formData.userName}
           onChange={(e) => setFormData((prev) => ({ ...prev, userName: e.target.value }))}
-          placeholder="Enter operator username"
+          placeholder="operator username"
+          icon={<Shield className="h-4 w-4" />}
+          autoComplete="username"
           required
         />
-        <div className="flex flex-col gap-2">
-          <label htmlFor="admin-password" className="type-label">
-            Password
-          </label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
-              id="admin-password"
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              value={formData.password}
-              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-              required
-              placeholder="Enter password"
-              className={cn(
-                'h-10 w-full rounded-md border border-border bg-surface py-2 pl-9 pr-10 text-sm text-foreground placeholder:text-muted focus:border-primary'
-              )}
-            />
+        <Input
+          label="Password"
+          name="password"
+          type={showPassword ? 'text' : 'password'}
+          value={formData.password}
+          onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+          placeholder="Your password"
+          icon={<Lock className="h-4 w-4" />}
+          autoComplete="current-password"
+          required
+          trailing={
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:text-foreground"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
-          </div>
-        </div>
+          }
+        />
         <Button type="submit" className="w-full" loading={isLoading}>
           Sign in
         </Button>
